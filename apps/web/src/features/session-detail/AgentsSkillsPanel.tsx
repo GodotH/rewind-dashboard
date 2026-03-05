@@ -175,7 +175,7 @@ export function SkillInvocationsPanel({
         {groups.map((group) => (
           <div key={group.skill} className="rounded bg-gray-950/40 px-2 py-1.5">
             <div className="flex items-center gap-2">
-              <span className="shrink-0 rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300">
+              <span className="shrink-0 rounded bg-brand-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-brand-400">
                 /{group.skill}
               </span>
               <span className="text-[10px] text-gray-500">

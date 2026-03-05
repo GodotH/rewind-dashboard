@@ -183,7 +183,7 @@ function SettingsForm({ settings }: { settings: Settings }) {
             disabled={!isDirty || mutation.isPending}
             className={`rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
               isDirty && !mutation.isPending
-                ? 'bg-brand-600 text-white hover:bg-brand-500'
+                ? 'bg-brand-600 text-gray-100 hover:bg-brand-500'
                 : 'cursor-not-allowed bg-gray-800 text-gray-500'
             }`}
           >

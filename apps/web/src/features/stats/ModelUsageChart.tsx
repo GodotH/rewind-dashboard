@@ -47,8 +47,8 @@ export function ModelUsageChart({ data }: { data: ModelUsage }) {
             <Tooltip
               formatter={(value) => formatTokenCount(value as number)}
               contentStyle={{
-                backgroundColor: '#1c1c1a',
-                border: '1px solid #3d3b36',
+                backgroundColor: 'var(--color-gray-900)',
+                border: '1px solid var(--color-gray-700)',
                 borderRadius: '8px',
                 fontSize: '12px',
               }}

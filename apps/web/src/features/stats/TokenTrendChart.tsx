@@ -155,7 +155,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
         ))}
       <div className="mt-1.5 border-t border-gray-700 pt-1.5 flex justify-between">
         <span className="text-gray-400">Total</span>
-        <span className="font-mono font-medium text-white">
+        <span className="font-mono font-medium text-gray-100">
           {formatTokenCount(total)}
         </span>
       </div>
@@ -217,7 +217,7 @@ export function TokenTrendChart({ data }: { data: DailyModelTokens[] }) {
             onClick={() => setGranularity('daily')}
             className={`rounded-l-lg px-3 py-1 ${
               granularity === 'daily'
-                ? 'bg-gray-700 text-white'
+                ? 'bg-gray-700 text-gray-100'
                 : 'text-gray-400 hover:text-gray-300'
             }`}
           >
@@ -228,7 +228,7 @@ export function TokenTrendChart({ data }: { data: DailyModelTokens[] }) {
             onClick={() => setGranularity('weekly')}
             className={`rounded-r-lg px-3 py-1 ${
               granularity === 'weekly'
-                ? 'bg-gray-700 text-white'
+                ? 'bg-gray-700 text-gray-100'
                 : 'text-gray-400 hover:text-gray-300'
             }`}
           >
@@ -240,14 +240,14 @@ export function TokenTrendChart({ data }: { data: DailyModelTokens[] }) {
       <div className="mt-4 h-72">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a2926" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" />
             <XAxis
               dataKey="dateLabel"
-              tick={{ fill: '#7a7668', fontSize: 10 }}
+              tick={{ fill: 'var(--color-gray-500)', fontSize: 10 }}
               tickLine={false}
             />
             <YAxis
-              tick={{ fill: '#7a7668', fontSize: 10 }}
+              tick={{ fill: 'var(--color-gray-500)', fontSize: 10 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(value: number) => formatTokenCount(value)}

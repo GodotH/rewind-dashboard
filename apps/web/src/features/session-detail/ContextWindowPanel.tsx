@@ -58,7 +58,7 @@ export function ContextWindowPanel({ contextWindow, tokens }: Props) {
         </span>
       </div>
       <div className="mt-1 flex items-baseline gap-1">
-        <span className="text-2xl font-bold text-white">
+        <span className="text-2xl font-bold text-gray-100">
           {formatTokenCount(currentContextSize)}
         </span>
         <span className="text-sm text-gray-500">
@@ -170,8 +170,8 @@ export function ContextWindowPanel({ contextWindow, tokens }: Props) {
               />
               <Tooltip
                 contentStyle={{
-                  background: '#1c1c1a',
-                  border: '1px solid #3d3b36',
+                  background: 'var(--color-gray-900)',
+                  border: '1px solid var(--color-gray-700)',
                   borderRadius: '8px',
                   fontSize: '11px',
                 }}
@@ -318,7 +318,7 @@ function TokenFallback({ tokens }: { tokens: TokenUsage }) {
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
       <h3 className="text-sm font-semibold text-gray-300">Token Usage</h3>
-      <p className="mt-1 text-2xl font-bold text-white">
+      <p className="mt-1 text-2xl font-bold text-gray-100">
         {formatTokenCount(activeTotal)}
       </p>
       <p className="text-[10px] text-gray-500">

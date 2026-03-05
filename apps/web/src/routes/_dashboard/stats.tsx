@@ -249,7 +249,7 @@ function StatCard({
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
       <p className="text-xs text-gray-400">{label}</p>
-      <p className="mt-1 text-xl font-bold text-white">{value}</p>
+      <p className="mt-1 text-xl font-bold text-gray-100">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-gray-500">{sub}</p>}
     </div>
   )

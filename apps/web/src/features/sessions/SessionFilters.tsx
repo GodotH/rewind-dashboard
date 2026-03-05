@@ -77,7 +77,7 @@ export function SessionFilters({ projects, activeCount }: SessionFiltersProps) {
             onClick={() => handleStatusChange(s)}
             className={`px-3 py-1.5 capitalize transition-colors ${
               status === s
-                ? 'bg-gray-700 text-white'
+                ? 'bg-gray-700 text-gray-100'
                 : 'text-gray-400 hover:text-gray-200'
             } ${s === 'all' ? 'rounded-l-lg' : ''} ${s === 'completed' ? 'rounded-r-lg' : ''}`}
           >

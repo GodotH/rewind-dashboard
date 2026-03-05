@@ -131,7 +131,7 @@ export function TimelineChart({ data, width, onHover }: Props) {
         y1={TOP_MARGIN - 4}
         x2={chartWidth - RIGHT_MARGIN}
         y2={TOP_MARGIN - 4}
-        stroke="#374151"
+        stroke="var(--color-gray-700)"
         strokeWidth={1}
       />
       {ticks.map((tick) => (
@@ -141,7 +141,7 @@ export function TimelineChart({ data, width, onHover }: Props) {
             y1={TOP_MARGIN - 8}
             x2={tick.x}
             y2={TOP_MARGIN - 4}
-            stroke="#4b5563"
+            stroke="var(--color-gray-600)"
             strokeWidth={1}
           />
           <text
@@ -168,7 +168,7 @@ export function TimelineChart({ data, width, onHover }: Props) {
         y1={mainLaneY + LANE_HEIGHT / 2}
         x2={chartWidth - RIGHT_MARGIN}
         y2={mainLaneY + LANE_HEIGHT / 2}
-        stroke="#1f2937"
+        stroke="var(--color-gray-800)"
         strokeWidth={1}
         strokeDasharray="2,4"
       />
@@ -226,7 +226,7 @@ export function TimelineChart({ data, width, onHover }: Props) {
             y1={skillRowY + LANE_HEIGHT / 2}
             x2={chartWidth - RIGHT_MARGIN}
             y2={skillRowY + LANE_HEIGHT / 2}
-            stroke="#1f2937"
+            stroke="var(--color-gray-800)"
             strokeWidth={1}
             strokeDasharray="2,4"
           />
@@ -276,7 +276,7 @@ export function TimelineChart({ data, width, onHover }: Props) {
             y1={errorRowY + LANE_HEIGHT / 2}
             x2={chartWidth - RIGHT_MARGIN}
             y2={errorRowY + LANE_HEIGHT / 2}
-            stroke="#1f2937"
+            stroke="var(--color-gray-800)"
             strokeWidth={1}
             strokeDasharray="2,4"
           />

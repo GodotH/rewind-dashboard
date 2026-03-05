@@ -33,7 +33,7 @@ export function CostEstimationPanel({ tokensByModel }: CostEstimationPanelProps)
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-300">Cost Estimation</h3>
-        <span className="font-mono text-lg font-bold text-white">
+        <span className="font-mono text-lg font-bold text-gray-100">
           ~{formatUSD(cost.totalUSD)}
         </span>
       </div>

@@ -1,6 +1,8 @@
 import { Link, useMatches } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { ActiveSessionsBadge } from '@/features/sessions/ActiveSessionsBadge'
+import { appInfoQuery } from '@/features/settings/app-info.queries'
 
 const NAV_ITEMS = [
   {
@@ -40,6 +42,7 @@ const NAV_ITEMS = [
 export function AppShell({ children }: { children: ReactNode }) {
   const matches = useMatches()
   const currentPath = matches[matches.length - 1]?.pathname ?? ''
+  const { data: appInfo } = useQuery(appInfoQuery)
 
   return (
     <div className="flex min-h-screen">
@@ -102,6 +105,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             <p className="text-xs text-gray-600">Read-only</p>
           </div>
+          {appInfo && (
+            <p
+              className="mt-1.5 truncate text-[10px] text-gray-600"
+              title={`v${appInfo.version} · ${appInfo.appPath}`}
+            >
+              v{appInfo.version} · {appInfo.appPath}
+            </p>
+          )}
         </div>
       </aside>
 

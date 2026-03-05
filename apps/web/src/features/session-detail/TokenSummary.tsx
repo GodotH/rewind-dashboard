@@ -26,7 +26,7 @@ export function TokenSummary({ tokens }: { tokens: TokenUsage }) {
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
       <h3 className="text-sm font-semibold text-gray-300">Token Usage</h3>
-      <p className="mt-1 text-2xl font-bold text-white">
+      <p className="mt-1 text-2xl font-bold text-gray-100">
         {formatTokenCount(activeTotal)}
       </p>
       <p className="text-[10px] text-gray-500">

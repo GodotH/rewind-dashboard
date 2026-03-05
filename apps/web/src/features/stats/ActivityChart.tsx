@@ -26,21 +26,21 @@ export function ActivityChart({ data }: { data: DailyActivity[] }) {
       <div className="mt-4 h-64">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a2926" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-gray-800)" />
             <XAxis
               dataKey="dateLabel"
-              tick={{ fill: '#7a7668', fontSize: 10 }}
+              tick={{ fill: 'var(--color-gray-500)', fontSize: 10 }}
               tickLine={false}
             />
             <YAxis
-              tick={{ fill: '#7a7668', fontSize: 10 }}
+              tick={{ fill: 'var(--color-gray-500)', fontSize: 10 }}
               tickLine={false}
               axisLine={false}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#1c1c1a',
-                border: '1px solid #3d3b36',
+                backgroundColor: 'var(--color-gray-900)',
+                border: '1px solid var(--color-gray-700)',
                 borderRadius: '8px',
                 fontSize: '12px',
               }}

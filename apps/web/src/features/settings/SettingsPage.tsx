@@ -10,6 +10,7 @@ import {
 import { TierSelector } from './TierSelector'
 import { PricingTableEditor } from './PricingTableEditor'
 import { usePrivacy } from '@/features/privacy/PrivacyContext'
+import { useTheme } from '@/features/theme/ThemeProvider'
 
 export function SettingsPage() {
   const { data: settings, isLoading } = useQuery(settingsQuery)
@@ -29,6 +30,8 @@ export function SettingsPage() {
 function SettingsForm({ settings }: { settings: Settings }) {
   const mutation = useSettingsMutation()
   const { privacyMode, togglePrivacyMode } = usePrivacy()
+  const { theme, toggleTheme } = useTheme()
+  const isDark = theme === 'dark'
 
   const [tier, setTier] = useState<SubscriptionTierId>(settings.subscriptionTier)
   const [overrides, setOverrides] = useState<Record<string, ModelPricingOverride>>(settings.pricingOverrides)
@@ -65,7 +68,7 @@ function SettingsForm({ settings }: { settings: Settings }) {
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-white">Settings</h1>
+      <h1 className="text-xl font-bold text-gray-100">Settings</h1>
       <p className="mt-1 text-xs text-gray-500">
         Configure your subscription tier and API pricing for cost estimation.
       </p>
@@ -129,6 +132,41 @@ function SettingsForm({ settings }: { settings: Settings }) {
         </div>
       </div>
 
+      {/* Theme */}
+      <div className="mt-6">
+        <h2 className="text-sm font-semibold text-gray-300">Theme</h2>
+        <p className="mt-1 text-[10px] text-gray-500">
+          Switch between dark and light mode. Defaults to your system preference.
+        </p>
+        <div className="mt-3 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-300">
+              {isDark ? 'Dark mode' : 'Light mode'}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">
+                {isDark ? '🌙' : '☀️'}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!isDark}
+                onClick={toggleTheme}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors ${
+                  !isDark ? 'bg-brand-600' : 'bg-gray-800'
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${
+                    !isDark ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Subscription Tier */}
       <div className="mt-6">
         <h2 className="text-sm font-semibold text-gray-300">Subscription Tier</h2>
@@ -183,7 +221,7 @@ function SettingsForm({ settings }: { settings: Settings }) {
             disabled={!isDirty || mutation.isPending}
             className={`rounded-lg px-4 py-1.5 text-xs font-medium transition-colors ${
               isDirty && !mutation.isPending
-                ? 'bg-brand-600 text-white hover:bg-brand-500'
+                ? 'bg-brand-600 text-gray-100 hover:bg-brand-500'
                 : 'cursor-not-allowed bg-gray-800 text-gray-500'
             }`}
           >

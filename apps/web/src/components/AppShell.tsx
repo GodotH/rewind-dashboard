@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="flex w-56 shrink-0 flex-col border-r border-gray-800 bg-gray-950">
         <div className="flex h-14 items-center border-b border-gray-800 px-4">
-          <Link to="/sessions" className="text-sm font-bold text-white">
+          <Link to="/sessions" className="text-sm font-bold text-gray-100">
             <span className="text-brand-500">Claude</span> Dashboard
           </Link>
         </div>
@@ -63,8 +63,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to={item.to}
                 className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
                   isActive
-                    ? 'bg-gray-800 text-white'
-                    : 'text-gray-400 hover:bg-gray-800/50 hover:text-gray-200'
+                    ? 'bg-gray-800 text-gray-100'
+                    : 'text-gray-400 hover:bg-gray-900 hover:text-gray-200'
                 }`}
               >
                 <span className="text-gray-500">
@@ -77,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="border-t border-gray-800 p-3">
+        <div className="border-t border-gray-800 p-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <a
@@ -103,11 +103,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </svg>
               </a>
             </div>
-            <p className="text-xs text-gray-600">Read-only</p>
+            <p className="text-xs text-gray-500">Read-only</p>
           </div>
           {appInfo && (
             <p
-              className="mt-1.5 truncate text-[10px] text-gray-600"
+              className="mt-1.5 truncate text-[10px] text-gray-500"
               title={`v${appInfo.version} · ${appInfo.appPath}`}
             >
               v{appInfo.version} · {appInfo.appPath}

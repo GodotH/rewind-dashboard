@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
 import { statsQuery } from '@/features/stats/stats.queries'
+import { projectAnalyticsQuery } from '@/features/project-analytics/project-analytics.queries'
 import { ActivityChart } from '@/features/stats/ActivityChart'
 import { ContributionHeatmap } from '@/features/stats/ContributionHeatmap'
 import { TokenTrendChart } from '@/features/stats/TokenTrendChart'
@@ -59,7 +60,7 @@ function StatsPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Stats</h1>
+          <h1 className="text-2xl font-bold text-gray-100">Stats</h1>
           <p className="mt-1 text-sm text-gray-400">
             Usage analytics and project insights
           </p>
@@ -114,7 +115,7 @@ function StatsPage() {
           onClick={() => navigate({ search: { tab: 'overview' } })}
           className={`px-4 py-2 text-sm border-b-2 transition-colors ${
             tab === 'overview'
-              ? 'border-brand-500 text-white'
+              ? 'border-brand-500 text-gray-100'
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
@@ -124,7 +125,7 @@ function StatsPage() {
           onClick={() => navigate({ search: { tab: 'projects' } })}
           className={`px-4 py-2 text-sm border-b-2 transition-colors ${
             tab === 'projects'
-              ? 'border-brand-500 text-white'
+              ? 'border-brand-500 text-gray-100'
               : 'border-transparent text-gray-400 hover:text-gray-200'
           }`}
         >
@@ -153,11 +154,21 @@ function StatsOverview({
   isLoading: boolean
   cost: { totalUSD: number } | null
 }) {
+  const { data: projectData } = useQuery(projectAnalyticsQuery)
+
   if (isLoading) {
     return (
       <div className="mt-6 space-y-4">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-20 animate-pulse rounded-xl bg-gray-900/50"
+            />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
               className="h-20 animate-pulse rounded-xl bg-gray-900/50"
@@ -186,24 +197,40 @@ function StatsOverview({
     (sum, m) => sum + m.inputTokens + m.outputTokens,
     0,
   )
+  const totalToolCalls = stats.dailyActivity.reduce(
+    (sum, d) => sum + d.toolCallCount,
+    0,
+  )
+  const totalDurationMs =
+    projectData?.projects.reduce((sum, p) => sum + p.totalDurationMs, 0) ?? 0
+  const projectCount = projectData?.projects.length ?? 0
 
   return (
     <>
-      {/* Summary cards */}
-      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+      {/* Row 1 — Key totals */}
+      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Total Sessions" value={String(stats.totalSessions)} />
         <StatCard
           label="Total Messages"
           value={stats.totalMessages.toLocaleString()}
         />
+        <StatCard label="Total Time" value={formatDuration(totalDurationMs)} />
+        <StatCard label="Projects" value={String(projectCount)} />
+      </div>
+
+      {/* Row 2 — Deeper metrics */}
+      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard
           label="Total Tokens"
           value={formatTokenCount(totalTokens)}
-          sub={cost ? `~${formatUSD(cost.totalUSD)}` : undefined}
         />
         <StatCard
-          label="Total Estimated Cost"
+          label="Estimated Cost"
           value={cost ? `~${formatUSD(cost.totalUSD)}` : 'N/A'}
+        />
+        <StatCard
+          label="Tool Calls"
+          value={totalToolCalls.toLocaleString()}
         />
         <StatCard
           label="Longest Session"
@@ -249,7 +276,7 @@ function StatCard({
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
       <p className="text-xs text-gray-400">{label}</p>
-      <p className="mt-1 text-xl font-bold text-white">{value}</p>
+      <p className="mt-1 text-xl font-bold text-gray-100">{value}</p>
       {sub && <p className="mt-0.5 text-xs text-gray-500">{sub}</p>}
     </div>
   )

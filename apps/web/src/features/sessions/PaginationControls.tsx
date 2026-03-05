@@ -74,7 +74,7 @@ export function PaginationControls({
                 onClick={() => onPageChange(item)}
                 className={`min-w-[2rem] rounded-lg px-2 py-1.5 text-xs font-mono transition-colors ${
                   item === page
-                    ? 'bg-brand-600 text-white'
+                    ? 'bg-brand-600 text-gray-100'
                     : 'border border-gray-700 bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
                 }`}
               >

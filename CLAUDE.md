@@ -83,6 +83,7 @@ npm run typecheck    # TypeScript checking
 - Tailwind v4 (CSS-first config)
 - Quality gates before PR: typecheck, lint, test, build (all must pass)
 - Never push directly to main
+- Do NOT add `Co-Authored-By` trailers to commit messages
 
 ## Product Spec
 

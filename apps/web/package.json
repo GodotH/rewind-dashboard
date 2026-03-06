@@ -1,6 +1,6 @@
 {
   "name": "claude-session-dashboard",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Local observability dashboard for Claude Code sessions",
   "type": "module",
   "license": "MIT",

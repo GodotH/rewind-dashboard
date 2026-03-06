@@ -7,10 +7,6 @@ on:
         description: 'Version to release (e.g. 0.5.0)'
         required: true
         type: string
-      npm_token:
-        description: 'npm auth token for publishing'
-        required: true
-        type: string
       dry_run:
         description: 'Run without publishing'
         required: false
@@ -35,6 +31,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
@@ -70,27 +68,48 @@ jobs:
         with:
           script: |
             const tag = 'v${{ inputs.version }}';
-            await github.rest.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: `refs/tags/${tag}`,
-              sha: context.sha
-            });
-            const { data: release } = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: tag,
-              name: tag,
-              generate_release_notes: true,
-            });
-            console.log(`Created release: ${release.html_url}`);
+
+            // Create tag only if it doesn't already exist
+            try {
+              await github.rest.git.createRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `refs/tags/${tag}`,
+                sha: context.sha
+              });
+              console.log(`Created tag: ${tag}`);
+            } catch (e) {
+              if (e.status === 422) {
+                console.log(`Tag ${tag} already exists, skipping tag creation`);
+              } else {
+                throw e;
+              }
+            }
+
+            // Create or update the GitHub release
+            try {
+              const { data: release } = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tag,
+                name: tag,
+                generate_release_notes: true,
+              });
+              console.log(`Created release: ${release.html_url}`);
+            } catch (e) {
+              if (e.status === 422) {
+                console.log(`Release for ${tag} already exists, skipping`);
+              } else {
+                throw e;
+              }
+            }
 
       - name: Publish to npm
         if: ${{ !inputs.dry_run }}
         working-directory: apps/web
         run: npm publish --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ inputs.npm_token }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Dry run summary
         if: ${{ inputs.dry_run }}

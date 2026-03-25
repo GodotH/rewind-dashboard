@@ -6,7 +6,7 @@ A local dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-co
 
 Built on top of [claude-session-dashboard](https://github.com/dlupiak/claude-session-dashboard) by [@dlupiak](https://github.com/dlupiak).
 
-## What's New (vs upstream)
+## Features
 
 | Feature | Description |
 |---------|-------------|
@@ -23,16 +23,38 @@ Built on top of [claude-session-dashboard](https://github.com/dlupiak/claude-ses
 
 All metadata is stored locally in `~/.claude-dashboard/session-metadata.json`. Session JSONL files are never modified.
 
-## Quick Start
+## Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org) v18 or later
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed (the dashboard reads its session data from `~/.claude/projects/`)
+- A few Claude Code sessions already run (so there's data to display)
+
+### Install
 
 ```bash
-git clone https://github.com/GodotH/claude-rewind.git
-cd claude-rewind/apps/web
+git clone https://github.com/GodotH/rewind-dashboard.git
+cd rewind-dashboard/apps/web
 npm install
+```
+
+### Run
+
+```bash
 npx vite --port 3030
 ```
 
-Open [http://localhost:3030](http://localhost:3030)
+Open [http://localhost:3030](http://localhost:3030) — you should see your sessions immediately.
+
+### First Steps
+
+1. **Browse sessions** — your most recent sessions appear on the Sessions page
+2. **Pin a session** — click the 📌 icon on any card to keep it at the top
+3. **Rename a session** — click `...` → Rename to give it a memorable name
+4. **View a conversation** — click "View" to read the full chat in a modal
+5. **Launch a session** — click "Launch" to resume it in a new terminal
+6. **Manage projects** — click "Projects" in the sidebar to pin or hide entire projects
 
 ## Make It Persistent (Auto-Start on Login)
 
@@ -43,7 +65,7 @@ Create a VBS wrapper for silent startup:
 ```vbs
 ' save as start-rewind.vbs
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run "cmd /c cd /d ""C:\path\to\claude-rewind\apps\web"" && npx vite --port 3030", 0, False
+WshShell.Run "cmd /c cd /d ""C:\path\to\rewind-dashboard\apps\web"" && npx vite --port 3030", 0, False
 ```
 
 Then create a Scheduled Task:
@@ -51,19 +73,19 @@ Then create a Scheduled Task:
 ```powershell
 $action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument '"C:\path\to\start-rewind.vbs"'
 $trigger = New-ScheduledTaskTrigger -AtLogOn
-Register-ScheduledTask -TaskName "StartClaudeRewind" -Action $action -Trigger $trigger -Description "Start Rewind Dashboard dashboard"
+Register-ScheduledTask -TaskName "StartRewindDashboard" -Action $action -Trigger $trigger -Description "Start Rewind Dashboard"
 ```
 
 ### macOS (Launch Agent)
 
 ```bash
-cat > ~/Library/LaunchAgents/com.claude-rewind.plist << 'EOF'
+cat > ~/Library/LaunchAgents/com.rewind-dashboard.plist << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.claude-rewind</string>
+    <string>com.rewind-dashboard</string>
     <key>ProgramArguments</key>
     <array>
         <string>npx</string>
@@ -72,7 +94,7 @@ cat > ~/Library/LaunchAgents/com.claude-rewind.plist << 'EOF'
         <string>3030</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/path/to/claude-rewind/apps/web</string>
+    <string>/path/to/rewind-dashboard/apps/web</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -80,27 +102,57 @@ cat > ~/Library/LaunchAgents/com.claude-rewind.plist << 'EOF'
 </dict>
 </plist>
 EOF
-launchctl load ~/Library/LaunchAgents/com.claude-rewind.plist
+launchctl load ~/Library/LaunchAgents/com.rewind-dashboard.plist
 ```
 
 ### Linux (systemd user service)
 
 ```bash
 mkdir -p ~/.config/systemd/user
-cat > ~/.config/systemd/user/claude-rewind.service << 'EOF'
+cat > ~/.config/systemd/user/rewind-dashboard.service << 'EOF'
 [Unit]
-Description=Rewind Dashboard Dashboard
+Description=Rewind Dashboard
 
 [Service]
-WorkingDirectory=/path/to/claude-rewind/apps/web
+WorkingDirectory=/path/to/rewind-dashboard/apps/web
 ExecStart=npx vite --port 3030
 Restart=on-failure
 
 [Install]
 WantedBy=default.target
 EOF
-systemctl --user enable --now claude-rewind
+systemctl --user enable --now rewind-dashboard
 ```
+
+## iOS / iPadOS (Experimental)
+
+> **Disclaimer**: This has not been tested on iOS. These are theoretical instructions based on how Claude Code and Rewind Dashboard work.
+
+Rewind Dashboard is a web app served by Vite — it runs in any browser. To access it from an iPhone or iPad:
+
+### Option 1: Access from local network
+
+If your Mac/PC and iOS device are on the same network:
+
+```bash
+# Start with host binding
+npx vite --port 3030 --host 0.0.0.0
+```
+
+Then open `http://<your-computer-ip>:3030` in Safari on your iOS device. You can add it to your Home Screen for an app-like experience (Safari → Share → Add to Home Screen).
+
+### Option 2: Remote access via Tailscale / Cloudflare Tunnel
+
+For access outside your local network:
+
+- **Tailscale**: Install on both devices. Access via Tailscale IP (e.g., `http://100.x.x.x:3030`)
+- **Cloudflare Tunnel**: `cloudflared tunnel --url http://localhost:3030` gives you an HTTPS URL
+
+### Limitations on iOS
+
+- **Session launcher** won't work (no terminal on iOS) — the Launch button will have no effect
+- **Claude Code data** lives on your computer, not on iOS — the dashboard must run on the machine where `~/.claude/` exists
+- iOS Safari may have minor rendering differences with Tailwind CSS
 
 ## How It Works
 

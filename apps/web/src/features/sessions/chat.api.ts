@@ -47,7 +47,7 @@ export const getChatMessages = createServerFn({ method: 'GET' })
       let msg: any
       try {
         msg = JSON.parse(line)
-      } catch {
+      } catch (_) {
         continue
       }
 

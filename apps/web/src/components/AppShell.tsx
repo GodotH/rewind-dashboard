@@ -59,7 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="flex w-56 shrink-0 flex-col border-r border-gray-800 bg-gray-950">
         <div className="flex h-14 items-center border-b border-gray-800 px-4">
           <Link to="/sessions" className="text-sm font-bold text-gray-100">
-            <span className="text-brand-500">Claude</span> Dashboard
+            <span className="text-brand-500">Rewind</span> Dashboard
           </Link>
         </div>
 

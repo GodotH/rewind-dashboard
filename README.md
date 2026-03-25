@@ -1,4 +1,4 @@
-# Claude Rewind
+# Rewind Dashboard
 
 **Find, manage and launch your previous coding sessions.**
 
@@ -51,7 +51,7 @@ Then create a Scheduled Task:
 ```powershell
 $action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument '"C:\path\to\start-rewind.vbs"'
 $trigger = New-ScheduledTaskTrigger -AtLogOn
-Register-ScheduledTask -TaskName "StartClaudeRewind" -Action $action -Trigger $trigger -Description "Start Claude Rewind dashboard"
+Register-ScheduledTask -TaskName "StartClaudeRewind" -Action $action -Trigger $trigger -Description "Start Rewind Dashboard dashboard"
 ```
 
 ### macOS (Launch Agent)
@@ -89,7 +89,7 @@ launchctl load ~/Library/LaunchAgents/com.claude-rewind.plist
 mkdir -p ~/.config/systemd/user
 cat > ~/.config/systemd/user/claude-rewind.service << 'EOF'
 [Unit]
-Description=Claude Rewind Dashboard
+Description=Rewind Dashboard Dashboard
 
 [Service]
 WorkingDirectory=/path/to/claude-rewind/apps/web
@@ -170,7 +170,7 @@ npx vitest                 # run tests
 
 ## Credits
 
-This project is a fork of [claude-session-dashboard](https://github.com/dlupiak/claude-session-dashboard) by [Dmytro Lupiak](https://github.com/dlupiak) — an excellent read-only analytics dashboard for Claude Code sessions. Claude Rewind adds session management, chat viewing, and launcher features on top of that foundation.
+This project is a fork of [claude-session-dashboard](https://github.com/dlupiak/claude-session-dashboard) by [Dmytro Lupiak](https://github.com/dlupiak) — an excellent read-only analytics dashboard for Claude Code sessions. Rewind Dashboard adds session management, chat viewing, and launcher features on top of that foundation.
 
 ## License
 

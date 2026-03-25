@@ -735,8 +735,22 @@ async function parseSubagentDetail(
 
 // --- Context window helpers ---
 
-function getContextLimit(_modelName: string): number {
-  return 200_000
+const CONTEXT_LIMITS: Record<string, number> = {
+  'claude-opus-4-6': 1_000_000,
+  'claude-opus-4-5': 200_000,
+  'claude-opus-4-1': 200_000,
+  'claude-opus-4': 200_000,
+  'claude-sonnet-4-6': 1_000_000,
+  'claude-sonnet-4-5': 200_000,
+  'claude-sonnet-4': 200_000,
+  'claude-haiku-4-5': 200_000,
+  'claude-haiku-3-5': 200_000,
+  'claude-haiku-3': 200_000,
+}
+
+function getContextLimit(modelName: string): number {
+  const normalized = modelName.replace(/-\d{8}$/, '')
+  return CONTEXT_LIMITS[normalized] ?? 200_000
 }
 
 function buildContextWindowData(

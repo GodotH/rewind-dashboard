@@ -69,7 +69,7 @@ function DetailPinButton({ sessionId, pinned }: { sessionId: string; pinned: boo
           : 'bg-gray-800 text-gray-500 hover:text-amber-400'
       }`}
     >
-      {pinned ? '\u{1F4CC} Pinned' : '\u{1F4CC} Pin'}
+      {pinned ? '\u2605 Pinned' : '\u2606 Pin'}
     </button>
   )
 }

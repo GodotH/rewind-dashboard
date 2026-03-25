@@ -117,7 +117,7 @@ export function ProjectTable({ projects, showHidden }: ProjectTableProps) {
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    {isPinned && <span className="text-amber-400 text-xs">{'\u{1F4CC}'}</span>}
+                    {isPinned && <span className="text-amber-400 text-xs">{'\u2605'}</span>}
                     <Link
                       to="/sessions"
                       search={{ project: project.projectName }}
@@ -161,7 +161,7 @@ export function ProjectTable({ projects, showHidden }: ProjectTableProps) {
                           : 'bg-gray-800 text-gray-500 hover:text-amber-400'
                       }`}
                     >
-                      {'\u{1F4CC}'}
+                      {'\u2605'}
                     </button>
                     <button
                       type="button"

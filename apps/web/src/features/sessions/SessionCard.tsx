@@ -50,7 +50,7 @@ function PinButton({ sessionId, pinned }: { sessionId: string; pinned: boolean }
           : 'opacity-40 hover:opacity-100 text-gray-500 hover:text-amber-400'
       }`}
     >
-      {'\u{1F4CC}'}
+      {pinned ? '\u2605' : '\u2606'}
     </button>
   )
 }
@@ -271,7 +271,7 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
               <span className={`rounded px-1.5 py-0.5 ${
                 projectMeta?.pinned ? 'bg-amber-900/30 text-amber-400 border border-amber-800/50' : 'bg-gray-800 text-gray-400'
               }`}>
-                {projectMeta?.pinned && '\u{1F4CC} '}{displayName}
+                {projectMeta?.pinned && '\u2605 '}{displayName}
               </span>
               {displayBranch && <span className="font-mono">{displayBranch}</span>}
             </div>

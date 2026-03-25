@@ -50,7 +50,7 @@ Open [http://localhost:3030](http://localhost:3030) — you should see your sess
 ### First Steps
 
 1. **Browse sessions** — your most recent sessions appear on the Sessions page
-2. **Pin a session** — click the 📌 icon on any card to keep it at the top
+2. **Pin a session** — click the ★ icon on any card to keep it at the top
 3. **Rename a session** — click `...` → Rename to give it a memorable name
 4. **View a conversation** — click "View" to read the full chat in a modal
 5. **Launch a session** — click "Launch" to resume it in a new terminal

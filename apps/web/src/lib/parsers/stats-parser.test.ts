@@ -235,7 +235,6 @@ describe('parseStats', () => {
         projectPath: '/proj',
         projectName: 'proj',
         branch: 'main',
-      cwd: null,
         cwd: '/proj',
         startedAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -345,7 +344,6 @@ describe('hour bucketing (via computeStatsFromSessions)', () => {
       projectPath: '/proj',
       projectName: 'proj',
       branch: null,
-      cwd: null,
       cwd: '/proj',
       startedAt: '2026-03-10T09:00:00.000Z',
       lastActiveAt: '2026-03-10T09:30:00.000Z',
@@ -386,7 +384,6 @@ describe('hour bucketing (via computeStatsFromSessions)', () => {
       projectPath: '/proj',
       projectName: 'proj',
       branch: null,
-      cwd: null,
       cwd: '/proj',
       startedAt: '', // empty — should be skipped by updateHourCounts
       lastActiveAt: '',

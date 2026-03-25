@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             return item.to.includes('?') ? (
               <a key={item.to} href={item.to} className={className}>{inner}</a>
             ) : (
-              <Link key={item.to} to={item.to} className={className}>{inner}</Link>
+              <Link key={item.to} to={item.to as '/'} className={className}>{inner}</Link>
             )
           })}
         </nav>

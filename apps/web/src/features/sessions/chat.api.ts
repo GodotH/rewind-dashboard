@@ -45,7 +45,11 @@ export const getChatMessages = createServerFn({ method: 'GET' })
       if (!line.trim()) continue
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw JSONL has arbitrary shape
       let msg: any
-      try { msg = JSON.parse(line) } catch { continue } // eslint-disable-line no-empty
+      try {
+        msg = JSON.parse(line)
+      } catch {
+        continue
+      }
 
       if (msg.type !== 'user' && msg.type !== 'assistant') continue
       const content = msg.message?.content

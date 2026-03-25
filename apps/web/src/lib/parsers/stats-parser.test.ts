@@ -235,6 +235,7 @@ describe('parseStats', () => {
         projectPath: '/proj',
         projectName: 'proj',
         branch: 'main',
+      cwd: null,
         cwd: '/proj',
         startedAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -246,6 +247,7 @@ describe('parseStats', () => {
         model: 'claude-opus-4-6',
         version: '1.0.0',
         fileSizeBytes: 512,
+    firstUserMessage: null,
         filePath: '/proj/new-session.jsonl',
       }
 
@@ -257,6 +259,7 @@ describe('parseStats', () => {
         projectPath: '/proj',
         projectName: 'proj',
         branch: 'main',
+      cwd: null,
         turns: [
           { uuid: 't1', type: 'user', timestamp: new Date().toISOString(), toolCalls: [] },
           { uuid: 't2', type: 'assistant', timestamp: new Date().toISOString(), toolCalls: [] },
@@ -342,6 +345,7 @@ describe('hour bucketing (via computeStatsFromSessions)', () => {
       projectPath: '/proj',
       projectName: 'proj',
       branch: null,
+      cwd: null,
       cwd: '/proj',
       startedAt: '2026-03-10T09:00:00.000Z',
       lastActiveAt: '2026-03-10T09:30:00.000Z',
@@ -353,6 +357,7 @@ describe('hour bucketing (via computeStatsFromSessions)', () => {
       model: null,
       version: null,
       fileSizeBytes: 256,
+    firstUserMessage: null,
       filePath: '/proj/hour-test.jsonl',
     }
 
@@ -381,6 +386,7 @@ describe('hour bucketing (via computeStatsFromSessions)', () => {
       projectPath: '/proj',
       projectName: 'proj',
       branch: null,
+      cwd: null,
       cwd: '/proj',
       startedAt: '', // empty — should be skipped by updateHourCounts
       lastActiveAt: '',
@@ -392,6 +398,7 @@ describe('hour bucketing (via computeStatsFromSessions)', () => {
       model: null,
       version: null,
       fileSizeBytes: 0,
+    firstUserMessage: null,
       filePath: '/proj/no-time.jsonl',
     }
 

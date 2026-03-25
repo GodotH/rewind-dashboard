@@ -67,22 +67,23 @@ export function AppShell({ children }: { children: ReactNode }) {
           {NAV_ITEMS.map((item) => {
             const itemPath = item.to.split('?')[0]
             const isActive = currentPath.startsWith(itemPath)
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-                  isActive
-                    ? 'bg-gray-800 text-gray-100'
-                    : 'text-gray-400 hover:bg-gray-900 hover:text-gray-200'
-                }`}
-              >
-                <span className="text-gray-500">
-                  {item.icon}
-                </span>
+            const className = `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+              isActive
+                ? 'bg-gray-800 text-gray-100'
+                : 'text-gray-400 hover:bg-gray-900 hover:text-gray-200'
+            }`
+            const inner = (
+              <>
+                <span className="text-gray-500">{item.icon}</span>
                 {item.label}
                 {item.to === '/sessions' && <ActiveSessionsBadge />}
-              </Link>
+              </>
+            )
+            // Use <a> for items with query params (TanStack Router Link doesn't support them in `to`)
+            return item.to.includes('?') ? (
+              <a key={item.to} href={item.to} className={className}>{inner}</a>
+            ) : (
+              <Link key={item.to} to={item.to} className={className}>{inner}</Link>
             )
           })}
         </nav>

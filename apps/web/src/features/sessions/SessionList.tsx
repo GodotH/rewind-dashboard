@@ -100,7 +100,7 @@ export function SessionList() {
 
   return (
     <div>
-      <SessionFilters projects={visibleProjects} activeCount={activeCount} metadata={metadata} />
+      <SessionFilters projects={visibleProjects} activeCount={activeCount} />
 
       <div className="mt-4 space-y-2">
         {mergedSessions.length === 0 ? (

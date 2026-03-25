@@ -2,15 +2,13 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Route } from '@/routes/_dashboard/sessions/index'
 import { usePrivacy } from '@/features/privacy/PrivacyContext'
-import type { Metadata } from '@/features/metadata/metadata.types'
 
 interface SessionFiltersProps {
   projects: string[]
   activeCount: number
-  metadata?: Metadata
 }
 
-export function SessionFilters({ projects, activeCount, metadata }: SessionFiltersProps) {
+export function SessionFilters({ projects, activeCount }: SessionFiltersProps) {
   const navigate = useNavigate()
   const { search: urlSearch, status, project } = Route.useSearch()
   const { privacyMode, anonymizeProjectName } = usePrivacy()

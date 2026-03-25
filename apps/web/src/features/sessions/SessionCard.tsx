@@ -58,14 +58,10 @@ function PinButton({ sessionId, pinned }: { sessionId: string; pinned: boolean }
 // --- Overflow menu (Hide + Rename) ---
 
 function OverflowMenu({
-  sessionId,
   projectPath,
-  customName,
   onStartRename,
 }: {
-  sessionId: string
   projectPath: string
-  customName: string
   onStartRename: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -288,9 +284,7 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
             </button>
             <LaunchButton sessionId={session.sessionId} cwd={session.projectPath} />
             <OverflowMenu
-              sessionId={session.sessionId}
               projectPath={session.projectPath}
-              customName={customName || ''}
               onStartRename={() => setIsRenaming(true)}
             />
             <span className="ml-1 text-xs text-gray-500">{formatRelativeTime(session.lastActiveAt)}</span>

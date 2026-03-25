@@ -43,16 +43,18 @@ export const getChatMessages = createServerFn({ method: 'GET' })
 
     for await (const line of rl) {
       if (!line.trim()) continue
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw JSONL has arbitrary shape
       let msg: any
-      try { msg = JSON.parse(line) } catch { continue }
+      try { msg = JSON.parse(line) } catch { continue } // eslint-disable-line no-empty
 
       if (msg.type !== 'user' && msg.type !== 'assistant') continue
-      if (!msg.message?.content || !Array.isArray(msg.message.content)) continue
+      const content = msg.message?.content
+      if (!content || !Array.isArray(content)) continue
 
       const textBlocks: string[] = []
       const toolNames: string[] = []
 
-      for (const block of msg.message.content) {
+      for (const block of content) {
         if (block.type === 'text' && block.text) {
           textBlocks.push(block.text)
         } else if (block.type === 'tool_use' && block.name) {

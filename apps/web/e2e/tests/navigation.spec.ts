@@ -34,11 +34,11 @@ test.describe('Navigation', () => {
     })
   })
 
-  test('Given I am on any page, Then the sidebar shows "Claude Dashboard" branding', async ({
+  test('Given I am on any page, Then the sidebar shows "Rewind Dashboard" branding', async ({
     page,
   }) => {
     await page.goto('/sessions')
-    await expect(page.locator('aside')).toContainText('Claude')
+    await expect(page.locator('aside')).toContainText('Rewind')
     await expect(page.locator('aside')).toContainText('Dashboard')
   })
 })

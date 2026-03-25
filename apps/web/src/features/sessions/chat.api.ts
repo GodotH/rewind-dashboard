@@ -14,7 +14,11 @@ export interface ChatMessage {
 function findSessionFile(sessionId: string, projectPath: string): string | null {
   const projectsDir = getProjectsDir()
   let entries: string[]
-  try { entries = fs.readdirSync(projectsDir) } catch { return null }
+  try {
+    entries = fs.readdirSync(projectsDir)
+  } catch (_) {
+    return null
+  }
 
   for (const dirName of entries) {
     const decoded = decodeProjectDirName(dirName)

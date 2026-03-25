@@ -44,7 +44,7 @@ function writeMetadataSync(metadata: Metadata): void {
   } catch (error) {
     try {
       if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath)
-    } catch {}
+    } catch (_) { /* cleanup failure is non-fatal */ }
     throw new Error(
       `Failed to save metadata: ${error instanceof Error ? error.message : 'Unknown error'}`,
     )

@@ -18,6 +18,7 @@ export interface SessionSummary {
   model: string | null
   version: string | null
   fileSizeBytes: number
+  firstUserMessage: string | null
 }
 
 // --- Session detail (full streaming parse) ---
@@ -104,6 +105,7 @@ export interface SessionDetail {
   projectPath: string
   projectName: string
   branch: string | null
+  cwd: string | null
   turns: Turn[]
   totalTokens: TokenUsage
   tokensByModel: Record<string, TokenUsage>

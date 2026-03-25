@@ -2,6 +2,8 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { scanAllSessions, getActiveSessions } from '@/lib/scanner/session-scanner'
 import type { SessionSummary } from '@/lib/parsers/types'
+import { readMetadataSync } from '@/features/metadata/metadata.api'
+import type { Metadata } from '@/features/metadata/metadata.types'
 
 export const getSessionList = createServerFn({ method: 'GET' }).handler(
   async () => {
@@ -41,10 +43,21 @@ export interface PaginatedSessionsResult {
 export async function paginateAndFilterSessions(
   allSessions: SessionSummary[],
   input: PaginatedSessionsInput,
+  metadata?: Metadata,
 ): Promise<PaginatedSessionsResult> {
   const { page, pageSize, search, status, project } = input
 
-  // Extract distinct project names from full unfiltered set
+  // Filter out sessions from hidden projects
+  const hiddenProjects = new Set(
+    Object.entries(metadata?.projects ?? {})
+      .filter(([, v]) => v.hidden)
+      .map(([k]) => k),
+  )
+  if (hiddenProjects.size > 0 && !project) {
+    allSessions = allSessions.filter((s) => !hiddenProjects.has(s.projectPath))
+  }
+
+  // Extract distinct project names from (non-hidden) set
   const projects = Array.from(
     new Set(allSessions.map((s) => s.projectName)),
   ).sort()
@@ -52,7 +65,8 @@ export async function paginateAndFilterSessions(
   // Apply filters
   let filtered = allSessions
 
-  // Search filter: case-insensitive substring on projectName/branch/sessionId/cwd
+  // Search filter: case-insensitive substring on projectName/branch/sessionId/cwd/customName
+  const sessionMeta = metadata?.sessions ?? {}
   if (search) {
     const q = search.toLowerCase()
     filtered = filtered.filter(
@@ -60,7 +74,8 @@ export async function paginateAndFilterSessions(
         s.projectName.toLowerCase().includes(q) ||
         s.branch?.toLowerCase().includes(q) ||
         s.sessionId.toLowerCase().includes(q) ||
-        s.cwd?.toLowerCase().includes(q),
+        s.cwd?.toLowerCase().includes(q) ||
+        sessionMeta[s.sessionId]?.customName?.toLowerCase().includes(q),
     )
   }
 
@@ -75,6 +90,39 @@ export async function paginateAndFilterSessions(
   if (project) {
     filtered = filtered.filter((s) => s.projectName === project)
   }
+
+  // Sort: session-pinned first, then ONE latest session per pinned project, then recency
+  const projectMeta = metadata?.projects ?? {}
+
+  // Find the most recent session ID per pinned project (only that one gets boosted)
+  const pinnedProjectTopSession = new Set<string>()
+  const pinnedProjectPaths = new Set(
+    Object.entries(projectMeta).filter(([, v]) => v.pinned).map(([k]) => k),
+  )
+  if (pinnedProjectPaths.size > 0) {
+    const bestPerProject = new Map<string, { id: string; time: number }>()
+    for (const s of filtered) {
+      if (!pinnedProjectPaths.has(s.projectPath)) continue
+      const t = new Date(s.lastActiveAt).getTime()
+      const current = bestPerProject.get(s.projectPath)
+      if (!current || t > current.time) {
+        bestPerProject.set(s.projectPath, { id: s.sessionId, time: t })
+      }
+    }
+    for (const v of bestPerProject.values()) pinnedProjectTopSession.add(v.id)
+  }
+
+  filtered.sort((a, b) => {
+    const aSessionPin = sessionMeta[a.sessionId]?.pinned ? 1 : 0
+    const bSessionPin = sessionMeta[b.sessionId]?.pinned ? 1 : 0
+    if (aSessionPin !== bSessionPin) return bSessionPin - aSessionPin
+
+    const aProjectPin = pinnedProjectTopSession.has(a.sessionId) ? 1 : 0
+    const bProjectPin = pinnedProjectTopSession.has(b.sessionId) ? 1 : 0
+    if (aProjectPin !== bProjectPin) return bProjectPin - aProjectPin
+
+    return new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
+  })
 
   const totalCount = filtered.length
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
@@ -101,5 +149,6 @@ export const getPaginatedSessions = createServerFn({ method: 'GET' })
   .inputValidator((input: unknown) => paginatedSessionsInputSchema.parse(input))
   .handler(async ({ data }): Promise<PaginatedSessionsResult> => {
     const allSessions = await scanAllSessions()
-    return paginateAndFilterSessions(allSessions, data)
+    const metadata = readMetadataSync()
+    return paginateAndFilterSessions(allSessions, data, metadata)
   })

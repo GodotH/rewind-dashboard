@@ -28,6 +28,15 @@ const NAV_ITEMS = [
     ),
   },
   {
+    to: '/stats?tab=projects',
+    label: 'Projects',
+    icon: (
+      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M1.5 1A1.5 1.5 0 000 2.5v3A1.5 1.5 0 001.5 7h3A1.5 1.5 0 006 5.5v-3A1.5 1.5 0 004.5 1h-3zm0 8A1.5 1.5 0 000 10.5v3A1.5 1.5 0 001.5 15h3A1.5 1.5 0 006 13.5v-3A1.5 1.5 0 004.5 9h-3zm8-8A1.5 1.5 0 008 2.5v3A1.5 1.5 0 009.5 7h3A1.5 1.5 0 0014 5.5v-3A1.5 1.5 0 0012.5 1h-3zm0 8A1.5 1.5 0 008 10.5v3A1.5 1.5 0 009.5 15h3a1.5 1.5 0 001.5-1.5v-3A1.5 1.5 0 0012.5 9h-3z" />
+      </svg>
+    ),
+  },
+  {
     to: '/settings',
     label: 'Settings',
     icon: (
@@ -56,7 +65,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <nav className="flex-1 p-3">
           {NAV_ITEMS.map((item) => {
-            const isActive = currentPath.startsWith(item.to)
+            const itemPath = item.to.split('?')[0]
+            const isActive = currentPath.startsWith(itemPath)
             return (
               <Link
                 key={item.to}

@@ -48,6 +48,7 @@ export async function parseSummary(
   let userMessageCount = 0
   let assistantMessageCount = 0
   let totalMessageCount = 0
+  let firstUserMessage: string | null = null
 
   for (const line of allLines) {
     const msg = safeParse(line)
@@ -64,7 +65,16 @@ export async function parseSummary(
     if (msg.cwd && !cwd) cwd = msg.cwd
     if (msg.version && !version) version = msg.version
 
-    if (msg.type === 'user') userMessageCount++
+    if (msg.type === 'user') {
+      userMessageCount++
+      if (!firstUserMessage) {
+        const content = msg.message?.content
+        if (Array.isArray(content)) {
+          const textBlock = content.find((c) => c.type === 'text' && c.text)
+          if (textBlock?.text) firstUserMessage = textBlock.text.slice(0, 120)
+        }
+      }
+    }
     if (msg.type === 'assistant') {
       assistantMessageCount++
       if (msg.message?.model && !model) model = msg.message.model
@@ -97,6 +107,7 @@ export async function parseSummary(
     model,
     version,
     fileSizeBytes,
+    firstUserMessage,
   }
 }
 
@@ -118,6 +129,7 @@ export async function parseDetail(
   const tasks: TaskItem[] = []
   const modelsSet = new Set<string>()
   let branch: string | null = null
+  let cwd: string | null = null
   const totalTokens: TokenUsage = {
     inputTokens: 0,
     outputTokens: 0,
@@ -149,6 +161,7 @@ export async function parseDetail(
     if (!msg || msg.type === 'file-history-snapshot') continue
 
     if (msg.gitBranch && !branch) branch = msg.gitBranch
+    if (msg.cwd && !cwd) cwd = msg.cwd
 
     // Track agent progress messages
     if (msg.type === 'progress' && msg.parentToolUseID) {
@@ -544,6 +557,7 @@ export async function parseDetail(
     projectPath,
     projectName,
     branch,
+    cwd,
     turns,
     totalTokens,
     tokensByModel,

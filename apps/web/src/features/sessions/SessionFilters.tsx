@@ -2,13 +2,15 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Route } from '@/routes/_dashboard/sessions/index'
 import { usePrivacy } from '@/features/privacy/PrivacyContext'
+import type { Metadata } from '@/features/metadata/metadata.types'
 
 interface SessionFiltersProps {
   projects: string[]
   activeCount: number
+  metadata?: Metadata
 }
 
-export function SessionFilters({ projects, activeCount }: SessionFiltersProps) {
+export function SessionFilters({ projects, activeCount, metadata }: SessionFiltersProps) {
   const navigate = useNavigate()
   const { search: urlSearch, status, project } = Route.useSearch()
   const { privacyMode, anonymizeProjectName } = usePrivacy()
@@ -90,18 +92,27 @@ export function SessionFilters({ projects, activeCount }: SessionFiltersProps) {
       </div>
 
       {projects.length > 1 && (
-        <select
-          value={project}
-          onChange={(e) => handleProjectChange(e.target.value)}
-          className="rounded-lg border border-gray-700 bg-gray-800/50 px-3 py-1.5 text-sm text-gray-200 outline-none focus:border-brand-500"
-        >
-          <option value="">All projects</option>
-          {projects.map((p) => (
-            <option key={p} value={p}>
-              {privacyMode ? anonymizeProjectName(p) : p}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-1">
+          <select
+            value={project}
+            onChange={(e) => handleProjectChange(e.target.value)}
+            className="rounded-lg border border-gray-700 bg-gray-800/50 px-3 py-1.5 text-sm text-gray-200 outline-none focus:border-brand-500"
+          >
+            <option value="">All projects</option>
+            {projects.map((p) => (
+              <option key={p} value={p}>
+                {privacyMode ? anonymizeProjectName(p) : p}
+              </option>
+            ))}
+          </select>
+          <a
+            href="/stats?tab=projects"
+            className="rounded-lg border border-gray-700 bg-gray-800/50 px-2 py-1.5 text-xs text-gray-400 transition-colors hover:text-gray-200 hover:border-gray-600"
+            title="Manage projects (pin, hide, sort)"
+          >
+            Manage
+          </a>
+        </div>
       )}
     </div>
   )

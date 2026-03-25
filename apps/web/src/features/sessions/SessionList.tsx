@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { paginatedSessionListQuery, activeSessionsQuery } from './sessions.queries'
+import { metadataQuery } from '@/features/metadata/metadata.queries'
 import { SessionCard } from './SessionCard'
 import { SessionFilters } from './SessionFilters'
 import { PaginationControls } from './PaginationControls'
@@ -36,8 +37,10 @@ export function SessionList() {
     paginatedSessionListQuery({ page, pageSize, search, status, project }),
   )
   const { data: activeSessions = [] } = useQuery(activeSessionsQuery)
+  const { data: metadata } = useQuery(metadataQuery)
 
-  // Merge active session status from the fast-polling query into current page results
+  // Merge active status from fast-polling query. Preserve server sort order
+  // (server sorts: session-pinned → project-pinned representative → recency)
   const mergedSessions = useMemo(() => {
     if (!paginatedData) return []
     const activeIds = new Set(activeSessions.map((s) => s.sessionId))
@@ -46,6 +49,22 @@ export function SessionList() {
       isActive: activeIds.has(s.sessionId) || s.isActive,
     }))
   }, [paginatedData, activeSessions])
+
+  // Client-side filter hidden projects from dropdown (instant, no stale data)
+  const visibleProjects = useMemo(() => {
+    const projects = paginatedData?.projects ?? []
+    const hiddenPaths = new Set(
+      Object.entries(metadata?.projects ?? {})
+        .filter(([, v]) => v.hidden)
+        .map(([k]) => k),
+    )
+    if (hiddenPaths.size === 0) return projects
+    const hiddenNames = new Set<string>()
+    for (const s of paginatedData?.sessions ?? []) {
+      if (hiddenPaths.has(s.projectPath)) hiddenNames.add(s.projectName)
+    }
+    return projects.filter((p) => !hiddenNames.has(p))
+  }, [paginatedData, metadata])
 
   function handlePageChange(newPage: number) {
     navigate({
@@ -77,12 +96,11 @@ export function SessionList() {
 
   const totalCount = paginatedData?.totalCount ?? 0
   const totalPages = paginatedData?.totalPages ?? 1
-  const projects = paginatedData?.projects ?? []
   const activeCount = activeSessions.length
 
   return (
     <div>
-      <SessionFilters projects={projects} activeCount={activeCount} />
+      <SessionFilters projects={visibleProjects} activeCount={activeCount} metadata={metadata} />
 
       <div className="mt-4 space-y-2">
         {mergedSessions.length === 0 ? (
@@ -93,7 +111,12 @@ export function SessionList() {
           </div>
         ) : (
           mergedSessions.map((session) => (
-            <SessionCard key={session.sessionId} session={session} />
+            <SessionCard
+              key={session.sessionId}
+              session={session}
+              metadata={metadata?.sessions[session.sessionId]}
+              projectMeta={metadata?.projects[session.projectPath]}
+            />
           ))
         )}
       </div>

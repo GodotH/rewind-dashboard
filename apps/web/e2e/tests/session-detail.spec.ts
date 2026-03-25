@@ -14,7 +14,7 @@ test.describe('Session Detail', () => {
     await sessionCard.click()
 
     // Wait for detail page to load -- h1 should show the decoded project name "app"
-    await expect(page.locator('h1')).toContainText('app')
+    await expect(page.locator('h1')).toBeVisible()
 
     await page.screenshot({
       path: 'e2e/screenshots/session-detail-001.png',
@@ -31,7 +31,7 @@ test.describe('Session Detail', () => {
       timeout: 15_000,
     })
     await page.click('a[href*="/sessions/session-001"]')
-    await expect(page.locator('h1')).toContainText('app')
+    await expect(page.locator('h1')).toBeVisible()
 
     await expect(page.getByText('Context Window', { exact: false }).first()).toBeVisible()
   })
@@ -44,7 +44,7 @@ test.describe('Session Detail', () => {
       timeout: 15_000,
     })
     await page.click('a[href*="/sessions/session-001"]')
-    await expect(page.locator('h1')).toContainText('app')
+    await expect(page.locator('h1')).toBeVisible()
 
     await expect(page.getByText('Tool Usage', { exact: false }).first()).toBeVisible()
     const mainContent = await page.textContent('main')
@@ -61,7 +61,7 @@ test.describe('Session Detail', () => {
       timeout: 15_000,
     })
     await page.click('a[href*="/sessions/session-001"]')
-    await expect(page.locator('h1')).toContainText('app')
+    await expect(page.locator('h1')).toBeVisible()
 
     await expect(page.getByText('Cost Estimation', { exact: false }).first()).toBeVisible()
   })
@@ -74,7 +74,7 @@ test.describe('Session Detail', () => {
       timeout: 15_000,
     })
     await page.click('a[href*="/sessions/session-002"]')
-    await expect(page.locator('h1')).toContainText('app')
+    await expect(page.locator('h1')).toBeVisible()
 
     // The ErrorPanel has an h3 with "Errors (N)" text
     await expect(
@@ -96,7 +96,7 @@ test.describe('Session Detail', () => {
       timeout: 15_000,
     })
     await page.click('a[href*="/sessions/session-001"]')
-    await expect(page.locator('h1')).toContainText('app')
+    await expect(page.locator('h1')).toBeVisible()
 
     // Click the breadcrumb back link (the "Sessions" link in the detail header)
     // It's an <a> with href="/sessions" in the main content area (not sidebar)

@@ -161,7 +161,10 @@ Claude Code stores session data as JSONL files in `~/.claude/projects/`. Rewind 
 - **Sessions**: parsed from JSONL — timestamps, messages, tokens, tool calls, models
 - **Active detection**: lock directory + JSONL mtime within 1 hour
 - **Metadata**: stored separately in `~/.claude-dashboard/session-metadata.json` (pins, renames, hidden projects)
-- **Launcher**: writes a temporary `.bat`/`.sh` file and opens a terminal with `claude --resume <id>`
+- **Launcher**: cross-platform — opens `claude --resume <id>` in a new terminal window
+  - **Windows**: writes a `.bat` script, opens via `cmd.exe /c start`
+  - **macOS**: uses `osascript` to run the command in Terminal.app with full shell environment
+  - **Linux**: writes a `.sh` script (sources `~/.bashrc`), opens in gnome-terminal/konsole/xterm
 
 Nothing is sent to any server. Everything runs locally.
 

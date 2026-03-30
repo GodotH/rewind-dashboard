@@ -3,7 +3,7 @@ import tsConfigPaths from 'vite-tsconfig-paths'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { spawn } from 'node:child_process'
+import { spawn, execSync } from 'node:child_process'
 import { homedir, tmpdir, platform } from 'node:os'
 import { join } from 'node:path'
 import { readdirSync, existsSync, readFileSync, writeFileSync, unlinkSync, chmodSync } from 'node:fs'
@@ -49,24 +49,38 @@ function launchSessionPlugin(): Plugin {
               child = spawn('cmd.exe', ['/c', 'start', '', batPath], { detached: true, stdio: 'ignore' })
               child.unref()
               setTimeout(() => { try { unlinkSync(batPath) } catch {} }, 60000)
+            } else if (platform() === 'darwin') {
+              // macOS: use osascript to run in Terminal.app with full shell environment
+              const escaped = `cd "${sessionCwd}" && ${resumeCmd}`.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+              spawn('osascript', [
+                '-e', `tell application "Terminal" to do script "${escaped}"`,
+                '-e', 'tell application "Terminal" to activate',
+              ], { detached: true, stdio: 'ignore' }).unref()
             } else {
-              // macOS / Linux — write a shell script and open in terminal
+              // Linux: write a shell script that sources profile for PATH
               const shPath = join(tmpdir(), `launch-session-${sessionId.slice(0,8)}.sh`)
-              writeFileSync(shPath, ['#!/bin/bash', `cd "${sessionCwd}"`, resumeCmd, ''].join('\n'))
+              const lines = [
+                '#!/usr/bin/env bash',
+                '[ -f "$HOME/.bashrc" ] && source "$HOME/.bashrc"',
+                '[ -f "$HOME/.profile" ] && source "$HOME/.profile"',
+                `cd "${sessionCwd}"`,
+                resumeCmd,
+                'exec bash',
+                '',
+              ]
+              writeFileSync(shPath, lines.join('\n'))
               chmodSync(shPath, 0o755)
-              if (platform() === 'darwin') {
-                // macOS: open a new Terminal.app window
-                spawn('open', ['-a', 'Terminal', shPath], { detached: true, stdio: 'ignore' }).unref()
+              // Find a terminal emulator (use execSync from top-level import)
+              let term = 'xterm'
+              for (const t of ['x-terminal-emulator', 'gnome-terminal', 'konsole', 'xfce4-terminal']) {
+                try {
+                  if (execSync(`command -v ${t} 2>/dev/null`).toString().trim()) { term = t; break }
+                } catch (_) { /* not found, try next */ }
+              }
+              if (term === 'gnome-terminal') {
+                spawn(term, ['--', shPath], { detached: true, stdio: 'ignore' }).unref()
               } else {
-                // Linux: try common terminal emulators
-                const term = ['x-terminal-emulator', 'gnome-terminal', 'xterm'].find((t) => {
-                  try { return require('child_process').execSync(`which ${t} 2>/dev/null`).toString().trim() } catch { return false }
-                })
-                if (term === 'gnome-terminal') {
-                  spawn(term, ['--', shPath], { detached: true, stdio: 'ignore' }).unref()
-                } else {
-                  spawn(term || 'xterm', ['-e', shPath], { detached: true, stdio: 'ignore' }).unref()
-                }
+                spawn(term, ['-e', shPath], { detached: true, stdio: 'ignore' }).unref()
               }
               setTimeout(() => { try { unlinkSync(shPath) } catch {} }, 60000)
             }

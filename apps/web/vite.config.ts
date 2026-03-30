@@ -4,9 +4,9 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { spawn } from 'node:child_process'
-import { homedir, tmpdir } from 'node:os'
+import { homedir, tmpdir, platform } from 'node:os'
 import { join } from 'node:path'
-import { readdirSync, existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
+import { readdirSync, existsSync, readFileSync, writeFileSync, unlinkSync, chmodSync } from 'node:fs'
 
 function launchSessionPlugin(): Plugin {
   return {
@@ -39,16 +39,37 @@ function launchSessionPlugin(): Plugin {
                 }
               }
             } catch {}
-            const safeCwd = sessionCwd.replace(/\//g, '\\')
             const resumeCmd = `claude --resume ${sessionId} --dangerously-skip-permissions`
-            const batPath = join(tmpdir(), `launch-session-${sessionId.slice(0,8)}.bat`)
-            writeFileSync(batPath, ['@echo off', `cd /d "${safeCwd}"`, resumeCmd, 'pause', ''].join('\r\n'))
-            const child = spawn('cmd.exe', ['/c', 'start', '', batPath], {
-              detached: true,
-              stdio: 'ignore',
-            })
-            child.unref()
-            setTimeout(() => { try { unlinkSync(batPath) } catch {} }, 60000)
+            const isWin = platform() === 'win32'
+            let child
+            if (isWin) {
+              const safeCwd = sessionCwd.replace(/\//g, '\\')
+              const batPath = join(tmpdir(), `launch-session-${sessionId.slice(0,8)}.bat`)
+              writeFileSync(batPath, ['@echo off', `cd /d "${safeCwd}"`, resumeCmd, 'pause', ''].join('\r\n'))
+              child = spawn('cmd.exe', ['/c', 'start', '', batPath], { detached: true, stdio: 'ignore' })
+              child.unref()
+              setTimeout(() => { try { unlinkSync(batPath) } catch {} }, 60000)
+            } else {
+              // macOS / Linux — write a shell script and open in terminal
+              const shPath = join(tmpdir(), `launch-session-${sessionId.slice(0,8)}.sh`)
+              writeFileSync(shPath, ['#!/bin/bash', `cd "${sessionCwd}"`, resumeCmd, ''].join('\n'))
+              chmodSync(shPath, 0o755)
+              if (platform() === 'darwin') {
+                // macOS: open a new Terminal.app window
+                spawn('open', ['-a', 'Terminal', shPath], { detached: true, stdio: 'ignore' }).unref()
+              } else {
+                // Linux: try common terminal emulators
+                const term = ['x-terminal-emulator', 'gnome-terminal', 'xterm'].find((t) => {
+                  try { return require('child_process').execSync(`which ${t} 2>/dev/null`).toString().trim() } catch { return false }
+                })
+                if (term === 'gnome-terminal') {
+                  spawn(term, ['--', shPath], { detached: true, stdio: 'ignore' }).unref()
+                } else {
+                  spawn(term || 'xterm', ['-e', shPath], { detached: true, stdio: 'ignore' }).unref()
+                }
+              }
+              setTimeout(() => { try { unlinkSync(shPath) } catch {} }, 60000)
+            }
             res.writeHead(200, { 'Content-Type': 'application/json' })
             res.end(JSON.stringify({ ok: true }))
           } catch (err: any) {

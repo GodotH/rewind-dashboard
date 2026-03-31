@@ -16,6 +16,7 @@ Fork of [claude-session-dashboard](https://github.com/dlupiak/claude-session-das
 - **Copy resume command** — copy `claude --resume <id>` to clipboard from the overflow menu
 
 ### Project Management
+- **Rename projects** — give projects meaningful names instead of folder-derived defaults
 - **Star projects** — starred projects surface their latest session to the top of the dashboard
 - **Hide projects** — remove noisy or old projects from all views (recoverable via Projects page)
 - **Project badges** — every session card shows a clickable blue "Project:" badge that filters by project
@@ -32,6 +33,7 @@ Fork of [claude-session-dashboard](https://github.com/dlupiak/claude-session-das
 ### Search & Navigation
 - **Cmd+K** — global keyboard shortcut to focus search
 - **Search** — filter by project name, branch, session ID, working directory, or custom session name
+- **Full-text conversation search** — searches inside all messages when query is 3+ characters, shows matching snippets with timestamps
 - **Active session detection** — detects running sessions even when idle (1-hour threshold)
 
 ## Getting Started
@@ -158,7 +160,7 @@ User metadata is stored in a single JSON file at `~/.claude-dashboard/session-me
     "<sessionId>": { "pinned": true, "customName": "Auth refactor" }
   },
   "projects": {
-    "<projectPath>": { "pinned": true, "hidden": false }
+    "<projectPath>": { "pinned": true, "hidden": false, "customName": "My Project" }
   }
 }
 ```

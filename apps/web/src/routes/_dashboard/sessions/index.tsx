@@ -8,6 +8,8 @@ const sessionsSearchSchema = z.object({
   search: z.string().default('').catch(''),
   status: z.enum(['all', 'active', 'completed']).default('all').catch('all'),
   project: z.string().default('').catch(''),
+  sort: z.enum(['latest', 'mostActive', 'longest', 'largest', 'starred']).default('latest').catch('latest'),
+  view: z.enum(['flat', 'grouped']).default('flat').catch('flat'),
 })
 
 export type SessionsSearch = z.infer<typeof sessionsSearchSchema>

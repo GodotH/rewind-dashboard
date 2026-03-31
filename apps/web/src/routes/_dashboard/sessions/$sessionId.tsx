@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { metadataQuery } from '@/features/metadata/metadata.queries'
 import { usePinSession, useRenameSession } from '@/features/metadata/useMetadataMutations'
+import { LaunchButton } from '@/components/LaunchButton'
 import { sessionDetailQuery } from '@/features/session-detail/session-detail.queries'
 import { TimelineEventsChart } from '@/features/session-detail/timeline-chart'
 import { ContextWindowPanel } from '@/features/session-detail/ContextWindowPanel'
@@ -28,33 +29,6 @@ export const Route = createFileRoute('/_dashboard/sessions/$sessionId')({
   validateSearch: searchSchema,
   component: SessionDetailPage,
 })
-
-function LaunchButton({ sessionId, cwd }: { sessionId: string; cwd?: string }) {
-  const [status, setStatus] = useState<'idle' | 'launched' | 'error'>('idle')
-
-  return (
-    <button
-      type="button"
-      title="Launch session in terminal"
-      onClick={async () => {
-        try {
-          const res = await fetch('/api/launch-session', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId, cwd }),
-          })
-          setStatus(res.ok ? 'launched' : 'error')
-        } catch {
-          setStatus('error')
-        }
-        setTimeout(() => setStatus('idle'), 2000)
-      }}
-      className="shrink-0 rounded bg-emerald-900/50 px-3 py-1 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-800/60 hover:text-emerald-300"
-    >
-      {status === 'launched' ? 'Launched!' : status === 'error' ? 'Failed' : 'Launch'}
-    </button>
-  )
-}
 
 function DetailPinButton({ sessionId, pinned }: { sessionId: string; pinned: boolean }) {
   const mutation = usePinSession()
@@ -202,9 +176,11 @@ function SessionDetailPage() {
               ? anonymizeProjectName(detail.projectName)
               : sessionTitle}
           </h1>
-          {sessionTitle !== detail.projectName && (
-            <p className="mt-0.5 text-xs text-gray-500">{detail.projectName}</p>
-          )}
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className="rounded bg-blue-900/20 border border-blue-800/40 px-1.5 py-0.5 text-xs text-blue-300">
+              Project: {detail.projectName}
+            </span>
+          </div>
           <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
             {detail.branch && (
               <span className="font-mono">{anonymizeBranch(detail.branch)}</span>
@@ -230,7 +206,7 @@ function SessionDetailPage() {
         <div className="flex items-center gap-2">
           <DetailPinButton sessionId={sessionId} pinned={sessionMeta?.pinned ?? false} />
           <DetailRenameButton sessionId={sessionId} currentName={sessionMeta?.customName || ''} />
-          <LaunchButton sessionId={sessionId} cwd={detail.projectPath} />
+          <LaunchButton sessionId={sessionId} cwd={detail.projectPath} size="md" />
           <ExportDropdown
             options={[
               {

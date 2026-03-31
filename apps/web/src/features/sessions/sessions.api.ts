@@ -23,6 +23,7 @@ const paginatedSessionsInputSchema = z.object({
   search: z.string(),
   status: z.enum(['all', 'active', 'completed']),
   project: z.string(),
+  sort: z.enum(['latest', 'mostActive', 'longest', 'largest', 'starred']).default('latest'),
 })
 
 type PaginatedSessionsInput = z.infer<typeof paginatedSessionsInputSchema>
@@ -45,7 +46,7 @@ export async function paginateAndFilterSessions(
   input: PaginatedSessionsInput,
   metadata?: Metadata,
 ): Promise<PaginatedSessionsResult> {
-  const { page, pageSize, search, status, project } = input
+  const { page, pageSize, search, status, project, sort } = input
 
   // Filter out sessions from hidden projects
   const hiddenProjects = new Set(
@@ -65,7 +66,7 @@ export async function paginateAndFilterSessions(
   // Apply filters
   let filtered = allSessions
 
-  // Search filter: case-insensitive substring on projectName/branch/sessionId/cwd/customName
+  // Search filter
   const sessionMeta = metadata?.sessions ?? {}
   if (search) {
     const q = search.toLowerCase()
@@ -86,51 +87,75 @@ export async function paginateAndFilterSessions(
     filtered = filtered.filter((s) => !s.isActive)
   }
 
-  // Project filter: exact match
+  // Project filter
   if (project) {
     filtered = filtered.filter((s) => s.projectName === project)
   }
 
-  // Sort: session-pinned first, then ONE latest session per pinned project, then recency
-  const projectMeta = metadata?.projects ?? {}
-
-  // Find the most recent session ID per pinned project (only that one gets boosted)
-  const pinnedProjectTopSession = new Set<string>()
-  const pinnedProjectPaths = new Set(
-    Object.entries(projectMeta).filter(([, v]) => v.pinned).map(([k]) => k),
-  )
-  if (pinnedProjectPaths.size > 0) {
-    const bestPerProject = new Map<string, { id: string; time: number }>()
-    for (const s of filtered) {
-      if (!pinnedProjectPaths.has(s.projectPath)) continue
-      const t = new Date(s.lastActiveAt).getTime()
-      const current = bestPerProject.get(s.projectPath)
-      if (!current || t > current.time) {
-        bestPerProject.set(s.projectPath, { id: s.sessionId, time: t })
-      }
-    }
-    for (const v of bestPerProject.values()) pinnedProjectTopSession.add(v.id)
+  // Starred filter (when sort mode is 'starred')
+  if (sort === 'starred') {
+    filtered = filtered.filter((s) => sessionMeta[s.sessionId]?.pinned)
   }
 
-  filtered.sort((a, b) => {
-    const aSessionPin = sessionMeta[a.sessionId]?.pinned ? 1 : 0
-    const bSessionPin = sessionMeta[b.sessionId]?.pinned ? 1 : 0
-    if (aSessionPin !== bSessionPin) return bSessionPin - aSessionPin
+  // Sort
+  const projectMeta = metadata?.projects ?? {}
 
-    const aProjectPin = pinnedProjectTopSession.has(a.sessionId) ? 1 : 0
-    const bProjectPin = pinnedProjectTopSession.has(b.sessionId) ? 1 : 0
-    if (aProjectPin !== bProjectPin) return bProjectPin - aProjectPin
+  if (sort === 'latest' || sort === 'starred') {
+    // Pin boost only in latest/starred modes
+    const pinnedProjectTopSession = new Set<string>()
+    if (sort === 'latest') {
+      const pinnedProjectPaths = new Set(
+        Object.entries(projectMeta).filter(([, v]) => v.pinned).map(([k]) => k),
+      )
+      if (pinnedProjectPaths.size > 0) {
+        const bestPerProject = new Map<string, { id: string; time: number }>()
+        for (const s of filtered) {
+          if (!pinnedProjectPaths.has(s.projectPath)) continue
+          const t = new Date(s.lastActiveAt).getTime()
+          const current = bestPerProject.get(s.projectPath)
+          if (!current || t > current.time) {
+            bestPerProject.set(s.projectPath, { id: s.sessionId, time: t })
+          }
+        }
+        for (const v of bestPerProject.values()) pinnedProjectTopSession.add(v.id)
+      }
+    }
 
-    return new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
-  })
+    filtered.sort((a, b) => {
+      const aPin = sessionMeta[a.sessionId]?.pinned ? 1 : 0
+      const bPin = sessionMeta[b.sessionId]?.pinned ? 1 : 0
+      if (aPin !== bPin) return bPin - aPin
+
+      if (sort === 'latest') {
+        const aProjPin = pinnedProjectTopSession.has(a.sessionId) ? 1 : 0
+        const bProjPin = pinnedProjectTopSession.has(b.sessionId) ? 1 : 0
+        if (aProjPin !== bProjPin) return bProjPin - aProjPin
+      }
+
+      return new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
+    })
+  } else {
+    // Literal sort — no pin boost
+    filtered.sort((a, b) => {
+      switch (sort) {
+        case 'mostActive':
+          if (a.messageCount !== b.messageCount) return b.messageCount - a.messageCount
+          return new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
+        case 'longest':
+          if (a.durationMs !== b.durationMs) return b.durationMs - a.durationMs
+          return new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
+        case 'largest':
+          if (a.fileSizeBytes !== b.fileSizeBytes) return b.fileSizeBytes - a.fileSizeBytes
+          return new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
+        default:
+          return new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
+      }
+    })
+  }
 
   const totalCount = filtered.length
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
-
-  // Clamp page to valid range
   const clampedPage = Math.min(Math.max(1, page), totalPages)
-
-  // Slice to page
   const start = (clampedPage - 1) * pageSize
   const end = start + pageSize
   const sessions = filtered.slice(start, end)

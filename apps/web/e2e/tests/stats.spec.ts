@@ -44,16 +44,16 @@ test.describe('Stats Page', () => {
     await expect(page.getByText('Model Usage').first()).toBeVisible()
   })
 
-  test('Given I am on the stats page, When I click the "Projects" tab, Then I see the Projects analytics view', async ({
+  test('Given I navigate to /projects, Then I see the Projects analytics view', async ({
     page,
   }) => {
-    await page.click('button:has-text("Projects")')
-    await expect(page).toHaveURL(/tab=projects/)
+    await page.goto('/projects')
+    await expect(page).toHaveURL(/\/projects/)
 
     // Wait for project analytics to load
     await expect(page.getByText('Total Projects').first()).toBeVisible()
     await page.screenshot({
-      path: 'e2e/screenshots/stats-projects.png',
+      path: 'e2e/screenshots/projects-page.png',
       fullPage: true,
     })
   })

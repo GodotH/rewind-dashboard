@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { paginatedSessionListQuery, activeSessionsQuery } from './sessions.queries'
@@ -8,6 +8,8 @@ import { SessionFilters } from './SessionFilters'
 import { PaginationControls } from './PaginationControls'
 import { usePageSizePreference } from './usePageSizePreference'
 import { SessionListGrouped } from './SessionListGrouped'
+import { searchConversations } from './search.api'
+import { Link } from '@tanstack/react-router'
 import { Route } from '@/routes/_dashboard/sessions/index'
 
 export function SessionList() {
@@ -128,6 +130,11 @@ export function SessionList() {
         )}
       </div>
 
+      {/* Full-text conversation search */}
+      {search && search.length >= 3 && (
+        <FullTextSearchResults query={search} existingIds={new Set(mergedSessions.map((s) => s.sessionId))} />
+      )}
+
       <div className="mt-4">
         <PaginationControls
           page={paginatedData?.page ?? page}
@@ -138,6 +145,57 @@ export function SessionList() {
           onPageSizeChange={handlePageSizeChange}
         />
       </div>
+    </div>
+  )
+}
+
+function FullTextSearchResults({ query, existingIds }: { query: string; existingIds: Set<string> }) {
+  const [results, setResults] = useState<Array<{ sessionId: string; projectPath: string; projectName: string; snippet: string }>>([])
+  const [loading, setLoading] = useState(false)
+  const [searched, setSearched] = useState('')
+
+  useEffect(() => {
+    if (query.length < 3 || query === searched) return
+    setLoading(true)
+    searchConversations({ data: { query, limit: 10 } })
+      .then((hits) => {
+        setResults(hits.filter((h) => !existingIds.has(h.sessionId)))
+        setSearched(query)
+      })
+      .catch(() => setResults([]))
+      .finally(() => setLoading(false))
+  }, [query, existingIds, searched])
+
+  if (!loading && results.length === 0) return null
+
+  return (
+    <div className="mt-6">
+      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        Conversation matches
+      </h3>
+      {loading ? (
+        <div className="h-12 animate-pulse rounded-lg bg-gray-800/50" />
+      ) : (
+        <div className="space-y-2">
+          {results.map((hit) => (
+            <Link
+              key={hit.sessionId}
+              to="/sessions/$sessionId"
+              params={{ sessionId: hit.sessionId }}
+              search={{ project: hit.projectPath }}
+              className="block rounded-lg border border-gray-800 bg-gray-900/50 p-3 transition-all hover:border-gray-700 hover:bg-gray-900"
+            >
+              <div className="flex items-center gap-2 text-xs">
+                <span className="rounded bg-blue-900/20 border border-blue-800/40 px-1.5 py-0.5 text-blue-300">
+                  Project: {hit.projectName}
+                </span>
+                <span className="font-mono text-gray-500">{hit.sessionId.slice(0, 8)}</span>
+              </div>
+              <p className="mt-1 text-sm text-gray-300">&ldquo;{hit.snippet}&rdquo;</p>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

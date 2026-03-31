@@ -76,6 +76,7 @@ export async function paginateAndFilterSessions(
         s.branch?.toLowerCase().includes(q) ||
         s.sessionId.toLowerCase().includes(q) ||
         s.cwd?.toLowerCase().includes(q) ||
+        s.firstUserMessage?.toLowerCase().includes(q) ||
         sessionMeta[s.sessionId]?.customName?.toLowerCase().includes(q),
     )
   }

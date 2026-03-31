@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { SessionSummary } from '@/lib/parsers/types'
 import type { SessionMetadataEntry, ProjectMetadataEntry } from '@/features/metadata/metadata.types'
-import { usePinSession, useRenameSession } from '@/features/metadata/useMetadataMutations'
+import { usePinSession, useRenameSession, useHideProject } from '@/features/metadata/useMetadataMutations'
 import { LaunchButton } from '@/components/LaunchButton'
 import { formatDuration, formatRelativeTime, formatBytes } from '@/lib/utils/format'
 import { usePrivacy } from '@/features/privacy/PrivacyContext'
@@ -24,6 +24,21 @@ function PinButton({ sessionId, pinned }: { sessionId: string; pinned: boolean }
     >
       {pinned ? '\u2605' : '\u2606'}
     </button>
+  )
+}
+
+function HideButton({ projectPath }: { projectPath: string }) {
+  const mutation = useHideProject()
+  const [hidden, setHidden] = useState(false)
+  if (hidden) {
+    return (
+      <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); mutation.mutate({ projectPath, hidden: false }); setHidden(false) }}
+        className="shrink-0 rounded bg-blue-900/50 px-1.5 py-0.5 text-xs text-blue-400 hover:bg-blue-800/60">Undo</button>
+    )
+  }
+  return (
+    <button type="button" title="Hide project" onClick={(e) => { e.preventDefault(); e.stopPropagation(); mutation.mutate({ projectPath, hidden: true }); setHidden(true) }}
+      className="shrink-0 rounded px-1.5 py-0.5 text-xs text-gray-500 transition-colors hover:text-gray-300">Hide</button>
   )
 }
 
@@ -157,6 +172,7 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
+          <HideButton projectPath={session.projectPath} />
           <LaunchButton sessionId={session.sessionId} cwd={session.projectPath} />
           <OverflowMenu
             sessionId={session.sessionId}

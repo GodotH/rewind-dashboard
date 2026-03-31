@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { formatDuration, formatRelativeTime } from '@/lib/utils/format'
 import { usePrivacy } from '@/features/privacy/PrivacyContext'
 import { metadataQuery } from '@/features/metadata/metadata.queries'
-import { usePinProject, useHideProject } from '@/features/metadata/useMetadataMutations'
+import { usePinProject, useHideProject, useRenameProject } from '@/features/metadata/useMetadataMutations'
 import type { ProjectAnalytics } from './project-analytics.api'
 
 type SortField = 'projectName' | 'totalSessions' | 'totalMessages' | 'totalDurationMs' | 'lastSessionAt'
@@ -30,6 +30,9 @@ export function ProjectTable({ projects, showHidden }: ProjectTableProps) {
   const { data: metadata } = useQuery(metadataQuery)
   const pinMutation = usePinProject()
   const hideMutation = useHideProject()
+  const renameMutation = useRenameProject()
+  const [renamingPath, setRenamingPath] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
 
   const projectMeta = metadata?.projects ?? {}
 
@@ -111,31 +114,63 @@ export function ProjectTable({ projects, showHidden }: ProjectTableProps) {
             return (
               <tr
                 key={project.projectPath}
-                className={`border-b border-gray-800/50 transition-colors hover:bg-gray-800/30 ${
+                className={`group border-b border-gray-800/50 transition-colors hover:bg-gray-800/30 ${
                   isHidden ? 'opacity-50' : ''
                 }`}
               >
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    {isPinned && <span className="text-amber-400 text-xs">{'\u2605'}</span>}
-                    <Link
-                      to="/sessions"
-                      search={{ project: project.projectName }}
-                      className="text-sm text-brand-500 hover:underline"
-                    >
-                      {anonymizeProjectName(project.projectName)}
-                    </Link>
-                    {project.activeSessions > 0 && (
-                      <span className="ml-2 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
-                        {project.activeSessions} active
-                      </span>
-                    )}
-                    {isHidden && (
-                      <span className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] text-gray-400">
-                        hidden
-                      </span>
-                    )}
-                  </div>
+                  {renamingPath === project.projectPath ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { renameMutation.mutate({ projectPath: project.projectPath, customName: renameValue.trim() }); setRenamingPath(null) }
+                          if (e.key === 'Escape') setRenamingPath(null)
+                        }}
+                        autoFocus
+                        className="w-48 rounded border border-gray-600 bg-gray-800 px-2 py-0.5 text-sm text-gray-100 outline-none focus:border-brand-500"
+                        placeholder="Project name..."
+                      />
+                      <button type="button" onClick={() => { renameMutation.mutate({ projectPath: project.projectPath, customName: renameValue.trim() }); setRenamingPath(null) }}
+                        className="rounded bg-brand-600 px-2 py-0.5 text-xs text-white hover:bg-brand-500">OK</button>
+                      <button type="button" onClick={() => setRenamingPath(null)}
+                        className="rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300 hover:bg-gray-600">X</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      {isPinned && <span className="text-amber-400 text-xs">{'\u2605'}</span>}
+                      <Link
+                        to="/sessions"
+                        search={{ project: project.projectName }}
+                        className="text-sm text-brand-500 hover:underline"
+                      >
+                        {meta?.customName || anonymizeProjectName(project.projectName)}
+                      </Link>
+                      <button
+                        type="button"
+                        title="Rename project"
+                        onClick={() => { setRenameValue(meta?.customName || project.projectName); setRenamingPath(project.projectPath) }}
+                        className="rounded px-1 py-0.5 text-xs text-gray-500 opacity-0 group-hover:opacity-100 hover:text-gray-300 transition-opacity"
+                      >
+                        ✏️
+                      </button>
+                      {meta?.customName && (
+                        <span className="text-[10px] text-gray-600 font-mono">{project.projectName}</span>
+                      )}
+                      {project.activeSessions > 0 && (
+                        <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+                          {project.activeSessions} active
+                        </span>
+                      )}
+                      {isHidden && (
+                        <span className="rounded bg-gray-700 px-1.5 py-0.5 text-[10px] text-gray-400">
+                          hidden
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right font-mono text-sm text-gray-300">
                   {project.totalSessions}

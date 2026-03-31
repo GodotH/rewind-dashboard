@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { AgentInvocation, SkillInvocation, TokenUsage } from '@/lib/parsers/types'
 import { formatTokenCount, formatDuration, formatUSD } from '@/lib/utils/format'
@@ -53,20 +53,31 @@ export function AgentDispatchesPanel({
     0,
   )
 
+  const [expanded, setExpanded] = useState(agents.length <= 5)
+
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-      <h3 className="text-sm font-semibold text-gray-300">Agent Dispatches</h3>
-      <p className="mt-1 text-xs text-gray-500">
-        {agents.length} agent dispatch{agents.length !== 1 ? 'es' : ''}
-        {totalAgentTokens > 0 && (
-          <span className="ml-1 text-indigo-400">
-            ({formatTokenCount(totalAgentTokens)} tokens
-            {totalAgentCost > 0 && ` · ~${formatUSD(totalAgentCost)}`})
-          </span>
-        )}
-      </p>
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <div>
+          <h3 className="text-sm font-semibold text-gray-300">Agent Dispatches</h3>
+          <p className="mt-1 text-xs text-gray-500">
+            {agents.length} agent dispatch{agents.length !== 1 ? 'es' : ''}
+            {totalAgentTokens > 0 && (
+              <span className="ml-1 text-indigo-400">
+                ({formatTokenCount(totalAgentTokens)} tokens
+                {totalAgentCost > 0 && ` · ~${formatUSD(totalAgentCost)}`})
+              </span>
+            )}
+          </p>
+        </div>
+        <span className="text-xs text-gray-500">{expanded ? '\u25B2' : '\u25BC'}</span>
+      </button>
 
-      <div className="mt-3 space-y-1">
+      {expanded && <div className="mt-3 space-y-1">
         {agents.map((a, i) => {
           const tokenCount =
             a.totalTokens ?? computeAgentTokens(a)
@@ -114,7 +125,7 @@ export function AgentDispatchesPanel({
             </div>
           )
         })}
-      </div>
+      </div>}
     </div>
   )
 }

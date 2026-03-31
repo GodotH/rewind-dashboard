@@ -4,11 +4,12 @@ import * as readline from 'node:readline'
 import { createServerFn } from '@tanstack/react-start'
 import { getProjectsDir, decodeProjectDirName, extractProjectName } from '@/lib/utils/claude-path'
 
-interface SearchHit {
+export interface SearchHit {
   sessionId: string
   projectPath: string
   projectName: string
   snippet: string
+  timestamp: string
 }
 
 /**
@@ -54,7 +55,8 @@ export const searchConversations = createServerFn({ method: 'GET' })
             sessionId,
             projectPath: decodedPath,
             projectName,
-            snippet: found,
+            snippet: found.snippet,
+            timestamp: found.timestamp,
           })
         }
       }
@@ -63,7 +65,7 @@ export const searchConversations = createServerFn({ method: 'GET' })
     return hits
   })
 
-async function searchFile(filePath: string, query: string): Promise<string | null> {
+async function searchFile(filePath: string, query: string): Promise<{ snippet: string; timestamp: string } | null> {
   const stream = fs.createReadStream(filePath, { encoding: 'utf-8' })
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity })
 
@@ -92,7 +94,7 @@ async function searchFile(filePath: string, query: string): Promise<string | nul
           const snippet = (start > 0 ? '...' : '') + text.slice(start, end).trim() + (end < text.length ? '...' : '')
           rl.close()
           stream.destroy()
-          return snippet
+          return { snippet, timestamp: (msg.timestamp as string) ?? '' }
         }
       }
     }

@@ -8,6 +8,7 @@ export const SessionMetadataEntrySchema = z.object({
 export const ProjectMetadataEntrySchema = z.object({
   pinned: z.boolean().optional(),
   hidden: z.boolean().optional(),
+  customName: z.string().optional(),
 })
 
 export const MetadataSchema = z.object({

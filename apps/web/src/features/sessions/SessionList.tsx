@@ -8,7 +8,8 @@ import { SessionFilters } from './SessionFilters'
 import { PaginationControls } from './PaginationControls'
 import { usePageSizePreference } from './usePageSizePreference'
 import { SessionListGrouped } from './SessionListGrouped'
-import { searchConversations } from './search.api'
+import { searchConversations, type SearchHit } from './search.api'
+import { formatRelativeTime } from '@/lib/utils/format'
 import { Link } from '@tanstack/react-router'
 import { Route } from '@/routes/_dashboard/sessions/index'
 
@@ -46,7 +47,7 @@ export function SessionList() {
     }
   }, [storedPageSize, pageSize, navigate])
 
-  const { data: paginatedData, isLoading } = useQuery(
+  const { data: paginatedData, isLoading, isFetching } = useQuery(
     paginatedSessionListQuery({ page, pageSize, search, status, project, sort }),
   )
   const { data: activeSessions = [] } = useQuery(activeSessionsQuery)
@@ -109,6 +110,13 @@ export function SessionList() {
         searchRef={searchInputRef}
       />
 
+      {/* Loading indicator */}
+      {isFetching && !isLoading && (
+        <div className="mt-3 h-0.5 w-full overflow-hidden rounded-full bg-gray-800">
+          <div className="h-full w-1/3 animate-pulse rounded-full bg-brand-500" style={{ animation: 'shimmer 1.2s ease-in-out infinite' }} />
+        </div>
+      )}
+
       <div className="mt-4 space-y-2">
         {mergedSessions.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-500">
@@ -150,7 +158,7 @@ export function SessionList() {
 }
 
 function FullTextSearchResults({ query, existingIds }: { query: string; existingIds: Set<string> }) {
-  const [results, setResults] = useState<Array<{ sessionId: string; projectPath: string; projectName: string; snippet: string }>>([])
+  const [results, setResults] = useState<SearchHit[]>([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState('')
 
@@ -185,11 +193,16 @@ function FullTextSearchResults({ query, existingIds }: { query: string; existing
               search={{ project: hit.projectPath }}
               className="block rounded-lg border border-gray-800 bg-gray-900/50 p-3 transition-all hover:border-gray-700 hover:bg-gray-900"
             >
-              <div className="flex items-center gap-2 text-xs">
-                <span className="rounded bg-blue-900/20 border border-blue-800/40 px-1.5 py-0.5 text-blue-300">
-                  Project: {hit.projectName}
-                </span>
-                <span className="font-mono text-gray-500">{hit.sessionId.slice(0, 8)}</span>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="rounded bg-blue-900/20 border border-blue-800/40 px-1.5 py-0.5 text-blue-300">
+                    Project: {hit.projectName}
+                  </span>
+                  <span className="font-mono text-gray-500">{hit.sessionId.slice(0, 8)}</span>
+                </div>
+                {hit.timestamp && (
+                  <span className="text-gray-500">{formatRelativeTime(hit.timestamp)}</span>
+                )}
               </div>
               <p className="mt-1 text-sm text-gray-300">&ldquo;{hit.snippet}&rdquo;</p>
             </Link>

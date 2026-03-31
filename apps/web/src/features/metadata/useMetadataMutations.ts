@@ -4,6 +4,7 @@ import {
   renameSession,
   pinProject,
   hideProject,
+  renameProject,
 } from './metadata.api'
 
 function useInvalidateAll() {
@@ -47,6 +48,15 @@ export function useHideProject() {
   return useMutation({
     mutationFn: (args: { projectPath: string; hidden: boolean }) =>
       hideProject({ data: args }),
+    onSuccess: invalidate,
+  })
+}
+
+export function useRenameProject() {
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: (args: { projectPath: string; customName: string }) =>
+      renameProject({ data: args }),
     onSuccess: invalidate,
   })
 }

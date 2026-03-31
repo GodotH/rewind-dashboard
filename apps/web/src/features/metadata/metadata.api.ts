@@ -126,5 +126,22 @@ export const hideProject = createServerFn({ method: 'POST' })
     writeMetadataSync(metadata)
   })
 
+export const renameProject = createServerFn({ method: 'POST' })
+  .inputValidator((input: { projectPath: string; customName: string }) => input)
+  .handler(async ({ data }) => {
+    const metadata = readMetadataSync()
+    const entry = {
+      ...metadata.projects[data.projectPath],
+      customName: data.customName || undefined,
+    }
+    const cleaned = cleanEntry(entry)
+    if (cleaned) {
+      metadata.projects[data.projectPath] = cleaned
+    } else {
+      delete metadata.projects[data.projectPath]
+    }
+    writeMetadataSync(metadata)
+  })
+
 // Exported for server-side use in sessions.api.ts
 export { readMetadataSync }

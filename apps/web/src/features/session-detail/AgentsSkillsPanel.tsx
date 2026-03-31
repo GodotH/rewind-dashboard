@@ -46,14 +46,14 @@ export function AgentDispatchesPanel({
     return { agentCosts: costs, totalAgentCost: total }
   }, [settings, agents])
 
+  const [expanded, setExpanded] = useState(agents.length <= 5)
+
   if (agents.length === 0) return null
 
   const totalAgentTokens = agents.reduce(
     (sum, a) => sum + (a.totalTokens ?? computeAgentTokens(a) ?? 0),
     0,
   )
-
-  const [expanded, setExpanded] = useState(agents.length <= 5)
 
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">

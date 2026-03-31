@@ -160,19 +160,22 @@ export function SessionList() {
 function FullTextSearchResults({ query, existingIds }: { query: string; existingIds: Set<string> }) {
   const [results, setResults] = useState<SearchHit[]>([])
   const [loading, setLoading] = useState(false)
-  const [searched, setSearched] = useState('')
+  const searchedRef = useRef('')
 
   useEffect(() => {
-    if (query.length < 3 || query === searched) return
+    if (query.length < 3 || query === searchedRef.current) return
+    let cancelled = false
     setLoading(true)
     searchConversations({ data: { query, limit: 10 } })
       .then((hits) => {
+        if (cancelled) return
         setResults(hits.filter((h) => !existingIds.has(h.sessionId)))
-        setSearched(query)
+        searchedRef.current = query
       })
-      .catch(() => setResults([]))
-      .finally(() => setLoading(false))
-  }, [query, existingIds, searched])
+      .catch(() => { if (!cancelled) setResults([]) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [query, existingIds])
 
   if (!loading && results.length === 0) return null
 

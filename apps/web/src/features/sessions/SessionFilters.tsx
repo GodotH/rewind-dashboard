@@ -44,7 +44,9 @@ export function SessionFilters({ projects, activeCount, searchRef }: SessionFilt
   }
 
   function handleViewChange(newView: string) {
-    navigate({ to: '/sessions', search: (prev) => ({ ...prev, view: newView, page: 1 }) })
+    // Grouped view needs more items per page to show meaningful groups
+    const pageSize = newView === 'grouped' ? 25 : undefined
+    navigate({ to: '/sessions', search: (prev) => ({ ...prev, view: newView, page: 1, ...(pageSize ? { pageSize } : {}) }) })
   }
 
   return (

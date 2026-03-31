@@ -38,7 +38,7 @@ function ProjectHeader({
         <span className="text-gray-400">📁</span>
         {projectName}
         <span className="text-xs font-normal text-gray-500">
-          {sessionCount} session{sessionCount !== 1 ? 's' : ''}
+          {sessionCount} on page
         </span>
       </button>
       <div className="flex items-center gap-1">

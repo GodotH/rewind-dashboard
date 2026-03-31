@@ -37,11 +37,31 @@ export function decodeProjectDirName(dirName: string): string {
 }
 
 /**
- * Extract a short project name from a decoded path.
- * "/Users/username/Documents/GitHub/myproject" -> "myproject"
+ * Extract a meaningful project name from a decoded path.
+ * Uses last 2 significant segments to avoid ambiguous names like "1" or "ai".
+ *
+ * "/Users/user/projects/mycallagent" -> "mycallagent"
+ * "/Users/user/AGENTS/CRM/1" -> "CRM/1"
+ * "/Users/user/CODE/mycallagent/ai" -> "mycallagent/ai"
+ * "C//" -> "C"
  */
 export function extractProjectName(decodedPath: string): string {
-  return path.basename(decodedPath)
+  // Split and filter empty/common noise segments
+  const noise = new Set(['users', 'home', 'documents', 'github', 'onedrive', '_live', '_code', '_work', 'projects', 'code', 'work', 'c', 'live'])
+  const segments = decodedPath.split('/').filter(Boolean)
+  const meaningful = segments.filter((s) => !noise.has(s.toLowerCase()))
+
+  if (meaningful.length === 0) return segments[segments.length - 1] || decodedPath
+  if (meaningful.length === 1) return meaningful[0]
+
+  // Use more parent context if basename alone is too short/generic
+  const basename = meaningful[meaningful.length - 1]
+  if (basename.length <= 3 || /^\d+$/.test(basename)) {
+    // Take up to 3 segments for very short names
+    const take = meaningful.length >= 3 ? 3 : 2
+    return meaningful.slice(-take).join('/')
+  }
+  return basename
 }
 
 /**

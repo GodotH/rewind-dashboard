@@ -5,6 +5,8 @@ import { metadataQuery } from '@/features/metadata/metadata.queries'
 import { usePinSession, useRenameSession } from '@/features/metadata/useMetadataMutations'
 import { LaunchButton } from '@/components/LaunchButton'
 import { sessionDetailQuery } from '@/features/session-detail/session-detail.queries'
+import { chatQuery } from '@/features/sessions/chat.queries'
+import type { ChatMessage } from '@/features/sessions/chat.api'
 import { TimelineEventsChart } from '@/features/session-detail/timeline-chart'
 import { ContextWindowPanel } from '@/features/session-detail/ContextWindowPanel'
 import { ToolUsagePanel } from '@/features/session-detail/ToolUsagePanel'
@@ -273,6 +275,70 @@ function SessionDetailPage() {
         </div>
       )}
 
+      {/* Conversation */}
+      <div className="mt-6">
+        <ConversationSection sessionId={sessionId} projectPath={detail.projectPath} />
+      </div>
+
+    </div>
+  )
+}
+
+function ConversationSection({ sessionId, projectPath }: { sessionId: string; projectPath: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const { data: messages, isLoading } = useQuery({
+    ...chatQuery(sessionId, projectPath),
+    enabled: expanded,
+  })
+
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900/50">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold text-gray-300 hover:text-gray-100"
+      >
+        <span>Conversation</span>
+        <span className="text-xs text-gray-500">{expanded ? '\u25B2' : '\u25BC'}</span>
+      </button>
+      {expanded && (
+        <div className="border-t border-gray-800 px-4 py-4 space-y-3 max-h-[600px] overflow-y-auto">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-12 animate-pulse rounded-lg bg-gray-800/50" />
+              ))}
+            </div>
+          ) : messages && messages.length > 0 ? (
+            messages.map((msg: ChatMessage, i: number) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'bg-brand-600/30 text-gray-100'
+                    : 'bg-gray-800 text-gray-300'
+                }`}>
+                  <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                    {msg.role === 'user' ? 'You' : 'Claude'}
+                    {msg.timestamp && (
+                      <span className="ml-2 font-normal normal-case">{formatDateTime(msg.timestamp)}</span>
+                    )}
+                  </p>
+                  <div className="whitespace-pre-wrap break-words">
+                    {msg.text.length > 5000 ? msg.text.slice(0, 5000) + '\n\n[truncated...]' : msg.text}
+                  </div>
+                  {msg.toolNames && msg.toolNames.length > 0 && (
+                    <p className="mt-1.5 text-[10px] text-gray-500">
+                      Tools: {msg.toolNames.join(', ')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-sm text-gray-500">No messages found</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

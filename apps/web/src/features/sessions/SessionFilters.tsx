@@ -32,7 +32,9 @@ export function SessionFilters({ projects, activeCount, searchRef }: SessionFilt
   }
 
   function handleStatusChange(newStatus: 'all' | 'active' | 'completed') {
-    navigate({ to: '/sessions', search: (prev) => ({ ...prev, status: newStatus, page: 1 }) })
+    // "All" clears project filter too
+    const extra = newStatus === 'all' ? { project: '' } : {}
+    navigate({ to: '/sessions', search: (prev) => ({ ...prev, status: newStatus, page: 1, ...extra }) })
   }
 
   function handleProjectChange(newProject: string) {
@@ -111,17 +113,17 @@ export function SessionFilters({ projects, activeCount, searchRef }: SessionFilt
         )}
 
         <div className="flex rounded-lg border border-gray-700 text-xs">
-          {(['flat', 'grouped'] as const).map((v) => (
+          {([['flat', 'Sessions'], ['grouped', 'Projects']] as const).map(([v, label]) => (
             <button
               key={v}
               onClick={() => handleViewChange(v)}
-              className={`px-3 py-1.5 capitalize transition-colors ${
+              className={`px-3 py-1.5 transition-colors ${
                 view === v
                   ? 'bg-gray-700 text-gray-100'
                   : 'text-gray-400 hover:text-gray-200'
               } ${v === 'flat' ? 'rounded-l-lg' : 'rounded-r-lg'}`}
             >
-              {v}
+              {label}
             </button>
           ))}
         </div>

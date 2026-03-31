@@ -7,7 +7,7 @@ import { appInfoQuery } from '@/features/settings/app-info.queries'
 const NAV_ITEMS = [
   {
     to: '/sessions',
-    label: 'Sessions',
+    label: 'Dashboard',
     icon: (
       <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
         <line x1="2" y1="4" x2="14" y2="4" />

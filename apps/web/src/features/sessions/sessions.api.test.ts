@@ -216,6 +216,7 @@ describe('paginateAndFilterSessions', () => {
         search: '',
         status: 'all',
         project: 'project-a',
+        sort: 'latest' as const,
       })
 
       expect(result.sessions).toHaveLength(1)
@@ -268,6 +269,7 @@ describe('paginateAndFilterSessions', () => {
         search: 'auth',
         status: 'active',
         project: 'web-app',
+        sort: 'latest' as const,
       })
 
       expect(result.sessions).toHaveLength(1)

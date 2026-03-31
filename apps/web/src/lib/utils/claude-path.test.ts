@@ -132,8 +132,8 @@ describe('claude-path', () => {
     })
 
     it('uses parent context for short basenames', () => {
-      // All segments <=3 chars, so takes last 3 meaningful
-      expect(extractProjectName('/a/b/c/d/e')).toBe('c/d/e')
+      // 'c' is in noise set, filtered out. Meaningful: [a,b,d,e]. e<=3, take 3: b/d/e
+      expect(extractProjectName('/a/b/c/d/e')).toBe('b/d/e')
     })
 
     it('returns the name portion from a typical project path', () => {

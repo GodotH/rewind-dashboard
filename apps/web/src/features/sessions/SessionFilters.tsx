@@ -27,26 +27,23 @@ export function SessionFilters({ projects, activeCount, searchRef }: SessionFilt
     setLocalSearch(value)
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
     debounceTimerRef.current = setTimeout(() => {
-      navigate({ to: '/sessions', search: (prev) => ({ ...prev, search: value, page: 1 }) })
+      navigate({ to: '/sessions', search: { search: value, sort, view, status, project, page: 1, pageSize: 5 } })
     }, 300)
   }
 
   function handleStatusChange(newStatus: 'all' | 'active' | 'completed') {
     navigate({
       to: '/sessions',
-      search: {
-        search: localSearch, sort, view, status: newStatus, page: 1, pageSize: 5,
-        project: newStatus === 'all' ? '' : project,
-      },
+      search: { search: localSearch, sort, view, status: newStatus, page: 1, pageSize: 5, project: newStatus === 'all' ? '' : project },
     })
   }
 
   function handleProjectChange(newProject: string) {
-    navigate({ to: '/sessions', search: (prev) => ({ ...prev, project: newProject, page: 1 }) })
+    navigate({ to: '/sessions', search: { search: localSearch, sort, view, status, project: newProject, page: 1, pageSize: 5 } })
   }
 
   function handleSortChange(newSort: string) {
-    navigate({ to: '/sessions', search: (prev) => ({ ...prev, sort: newSort, page: 1 }) })
+    navigate({ to: '/sessions', search: { search: localSearch, sort: newSort as typeof sort, view, status, project, page: 1, pageSize: 5 } })
   }
 
   function handleViewChange(newView: string) {

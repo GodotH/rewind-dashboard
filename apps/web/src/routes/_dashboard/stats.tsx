@@ -18,7 +18,7 @@ import {
 } from '@/lib/utils/export-utils'
 import { ExportDropdown } from '@/components/ExportDropdown'
 import { useSessionCost } from '@/features/cost-estimation/useSessionCost'
-import type { TokenUsage, StatsCache } from '@/lib/parsers/types'
+import type { TokenUsage } from '@/lib/parsers/types'
 
 export const Route = createFileRoute('/_dashboard/stats')({
   component: StatsPage,

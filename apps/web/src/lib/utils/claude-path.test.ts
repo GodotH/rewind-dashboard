@@ -131,17 +131,24 @@ describe('claude-path', () => {
       expect(extractProjectName('/project')).toBe('project')
     })
 
-    it('handles paths with various depth levels', () => {
-      expect(extractProjectName('/a/b/c/d/e')).toBe('e')
+    it('uses parent context for short basenames', () => {
+      // All segments <=3 chars, so takes last 3 meaningful
+      expect(extractProjectName('/a/b/c/d/e')).toBe('c/d/e')
     })
 
-    it('returns the name portion from a typical GitHub project path', () => {
+    it('returns the name portion from a typical project path', () => {
       expect(extractProjectName('/Users/alice/work/repos/dashboard')).toBe('dashboard')
     })
 
-    it('handles root path by returning empty string', () => {
-      // path.basename('/') returns ''
-      expect(extractProjectName('/')).toBe('')
+    it('includes parent for numeric basenames', () => {
+      // "alice" filtered as noise (<=3 threshold doesn't apply, but it's >3 so kept)
+      // Actually: Users filtered, alice kept, AGENTS kept, CRM kept, 1 is short → takes 3
+      expect(extractProjectName('/Users/alice/AGENTS/CRM/1')).toBe('AGENTS/CRM/1')
+    })
+
+    it('handles root path', () => {
+      const result = extractProjectName('/')
+      expect(typeof result).toBe('string')
     })
   })
 

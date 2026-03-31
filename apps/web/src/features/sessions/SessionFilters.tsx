@@ -32,9 +32,13 @@ export function SessionFilters({ projects, activeCount, searchRef }: SessionFilt
   }
 
   function handleStatusChange(newStatus: 'all' | 'active' | 'completed') {
-    // "All" clears project filter too
-    const extra = newStatus === 'all' ? { project: '' } : {}
-    navigate({ to: '/sessions', search: (prev) => ({ ...prev, status: newStatus, page: 1, ...extra }) })
+    navigate({
+      to: '/sessions',
+      search: {
+        search: localSearch, sort, view, status: newStatus, page: 1, pageSize: 5,
+        project: newStatus === 'all' ? '' : project,
+      },
+    })
   }
 
   function handleProjectChange(newProject: string) {
@@ -46,9 +50,14 @@ export function SessionFilters({ projects, activeCount, searchRef }: SessionFilt
   }
 
   function handleViewChange(newView: string) {
-    // Grouped view needs more items per page to show meaningful groups
-    const pageSize = newView === 'grouped' ? 25 : undefined
-    navigate({ to: '/sessions', search: (prev) => ({ ...prev, view: newView, page: 1, ...(pageSize ? { pageSize } : {}) }) })
+    navigate({
+      to: '/sessions',
+      search: {
+        search: localSearch, sort, status, project, page: 1,
+        view: newView as 'flat' | 'grouped',
+        pageSize: newView === 'grouped' ? 25 : 5,
+      },
+    })
   }
 
   return (

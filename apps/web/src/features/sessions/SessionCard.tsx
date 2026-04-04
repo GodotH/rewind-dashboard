@@ -7,6 +7,7 @@ import { LaunchButton } from '@/components/LaunchButton'
 import { formatDuration, formatRelativeTime, formatBytes } from '@/lib/utils/format'
 import { usePrivacy } from '@/features/privacy/PrivacyContext'
 import { StatusBadge } from './StatusBadge'
+import { ProviderBadge } from './ProviderBadge'
 import { RunningTimer } from './RunningTimer'
 
 function PinButton({ sessionId, pinned }: { sessionId: string; pinned: boolean }) {
@@ -149,6 +150,7 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
               <span className="text-gray-500 text-xs">💬</span>
               <h3 className="truncate text-sm font-semibold text-gray-100" title={titleText}>{titleText}</h3>
               <StatusBadge isActive={session.isActive} />
+              <ProviderBadge provider={session.provider} />
             </div>
           )}
           <div className="mt-1 flex items-center gap-2 truncate text-xs text-gray-500">
@@ -173,7 +175,7 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
 
         <div className="flex shrink-0 items-center gap-1.5">
           <HideButton projectPath={session.projectPath} />
-          <LaunchButton sessionId={session.sessionId} cwd={session.projectPath} />
+          {session.provider === 'claude' && <LaunchButton sessionId={session.sessionId} cwd={session.projectPath} />}
           <OverflowMenu
             sessionId={session.sessionId}
             onStartRename={() => setIsRenaming(true)}

@@ -1,12 +1,12 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { getProjectsDir, extractSessionId } from '../utils/claude-path'
+import { extractSessionId } from '../utils/claude-path'
 import { scanProjects } from './project-scanner'
 import { isSessionActive } from './active-detector'
 import { parseSummary } from '../parsers/session-parser'
 import type { SessionSummary } from '../parsers/types'
 
-/** Extended summary that includes the absolute JSONL file path (server-side only). */
+/** Extended summary that includes the absolute file path (server-side only). */
 export interface SessionSummaryWithPath extends SessionSummary {
   filePath: string
 }
@@ -16,6 +16,13 @@ const summaryCache = new Map<
   string,
   { mtimeMs: number; summary: SessionSummary }
 >()
+
+function extractProviderSessionId(filename: string, provider: string): string {
+  if (provider === 'gemini') {
+    return filename.replace(/\.json$/, '')
+  }
+  return extractSessionId(filename)
+}
 
 /**
  * Internal scanning logic that returns summaries with their file paths.
@@ -27,10 +34,9 @@ async function scanSessionsInternal(): Promise<SessionSummaryWithPath[]> {
 
   for (const project of projects) {
     for (const file of project.sessionFiles) {
-      const sessionId = extractSessionId(file)
+      const sessionId = extractProviderSessionId(file, project.provider)
       const filePath = path.join(
-        getProjectsDir(),
-        project.dirName,
+        project.absoluteDir,
         file,
       )
 
@@ -41,7 +47,8 @@ async function scanSessionsInternal(): Promise<SessionSummaryWithPath[]> {
       const cached = summaryCache.get(sessionId)
       if (cached && cached.mtimeMs === stat.mtimeMs) {
         // Refresh active status even for cached entries
-        const active = await isSessionActive(project.dirName, sessionId)
+        // active detection only works for Claude right now
+        const active = project.provider === 'claude' ? await isSessionActive(project.dirName, sessionId) : false
         summaries.push({ ...cached.summary, isActive: active, filePath })
         continue
       }
@@ -53,10 +60,11 @@ async function scanSessionsInternal(): Promise<SessionSummaryWithPath[]> {
         project.decodedPath,
         project.projectName,
         stat.size,
+        project.provider,
       )
 
       if (summary) {
-        const active = await isSessionActive(project.dirName, sessionId)
+        const active = project.provider === 'claude' ? await isSessionActive(project.dirName, sessionId) : false
         summary.isActive = active
 
         summaryCache.set(sessionId, {

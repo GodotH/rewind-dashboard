@@ -57,7 +57,7 @@ Run the failing CI step locally from `apps/web/`:
 
 If reproducing a specific test:
 - Unit: `npx vitest run <test-file>`
-- E2E: `npx playwright test <spec-file>`
+- E2E: `agent-browser test <spec-file>`
 
 ### 4. Investigate with Playwright (if E2E failure)
 

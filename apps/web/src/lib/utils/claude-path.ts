@@ -8,14 +8,40 @@ function resolveClaudeDir(): string {
   return path.join(os.homedir(), '.claude')
 }
 
+function resolveCodexDir(): string {
+  return path.join(os.homedir(), '.codex')
+}
+
+function resolveGeminiDir(): string {
+  return path.join(os.homedir(), '.gemini')
+}
+
 const CLAUDE_DIR = resolveClaudeDir()
+const CODEX_DIR = resolveCodexDir()
+const GEMINI_DIR = resolveGeminiDir()
 
 export function getClaudeDir(): string {
   return CLAUDE_DIR
 }
 
+export function getCodexDir(): string {
+  return CODEX_DIR
+}
+
+export function getGeminiDir(): string {
+  return GEMINI_DIR
+}
+
 export function getProjectsDir(): string {
   return path.join(CLAUDE_DIR, 'projects')
+}
+
+export function getCodexSessionsDir(): string {
+  return path.join(CODEX_DIR, 'sessions')
+}
+
+export function getGeminiConversationsDir(): string {
+  return path.join(GEMINI_DIR, 'antigravity', 'conversations')
 }
 
 export function getStatsPath(): string {
@@ -39,11 +65,6 @@ export function decodeProjectDirName(dirName: string): string {
 /**
  * Extract a meaningful project name from a decoded path.
  * Uses last 2 significant segments to avoid ambiguous names like "1" or "ai".
- *
- * "/Users/user/projects/mycallagent" -> "mycallagent"
- * "/Users/user/AGENTS/CRM/1" -> "CRM/1"
- * "/Users/user/CODE/mycallagent/ai" -> "mycallagent/ai"
- * "C//" -> "C"
  */
 export function extractProjectName(decodedPath: string): string {
   // Split and filter empty/common noise segments
@@ -69,5 +90,5 @@ export function extractProjectName(decodedPath: string): string {
  * "abc-123.jsonl" -> "abc-123"
  */
 export function extractSessionId(filename: string): string {
-  return filename.replace(/\.jsonl$/, '')
+  return filename.replace(/\.jsonl$/, '').replace(/\.pb$/, '')
 }

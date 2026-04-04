@@ -121,7 +121,7 @@ export function SessionList() {
         {mergedSessions.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-500">
             {totalCount === 0 && !search && status === 'all' && !project
-              ? 'No sessions found in ~/.claude'
+              ? 'No sessions found in ~/.claude, ~/.gemini or ~/.codex'
               : 'No sessions match your filters'}
           </div>
         ) : view === 'grouped' ? (
@@ -180,7 +180,7 @@ function FullTextSearchResults({ query, existingIds }: { query: string; existing
     return () => { cancelled = true }
   }, [query, existingIds])
 
-  if (!loading && results.length === 0) return null
+  if (!loading && results.length === 0) null
 
   return (
     <div className="mt-6">

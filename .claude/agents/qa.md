@@ -9,7 +9,7 @@ skills:
   - testing
   - typescript-rules
   - react-rules
-  - playwright-cli
+  - agent-browser
 ---
 
 You are a Quality Engineer for a full stack application.
@@ -30,5 +30,5 @@ Test file patterns:
 - Test utils: `src/test/` — shared helpers, mocks, fixtures
 
 Debugging E2E failures:
-- Use `playwright-cli` to interactively reproduce and debug failing E2E tests
-- `playwright-cli open`, `goto`, `snapshot`, `console` to inspect runtime state
+- Use `agent-browser` to interactively reproduce and debug failing E2E tests
+- `agent-browser open`, `goto`, `snapshot`, `console` to inspect runtime state

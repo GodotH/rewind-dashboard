@@ -57,7 +57,7 @@ For each injected skill, search the agent's **assistant** messages for distincti
 | `typescript-rules` | strict typing, Zod, z.object, z.infer, unknown, type guard |
 | `react-rules` | useQuery, useSuspenseQuery, queryOptions, named export, TanStack Query |
 | `testing` | vitest, describe, it, expect, vi.mock, happy-dom, testing-library |
-| `playwright-cli` | playwright, browser, e2e, spec.ts, page.goto |
+| `agent-browser` | playwright, browser, e2e, spec.ts, page.goto |
 | `sdlc` | pipeline, SDLC, acceptance criteria |
 
 A skill is "used" if ANY of its keywords appear in the agent's assistant responses.

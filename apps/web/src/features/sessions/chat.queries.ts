@@ -1,10 +1,15 @@
 import { queryOptions } from '@tanstack/react-query'
 import { getChatMessages } from './chat.api'
+import type { SessionProvider } from '@/lib/parsers/types'
 
-export function chatQuery(sessionId: string, projectPath: string) {
+export function chatQuery(
+  sessionId: string,
+  projectPath: string,
+  provider?: SessionProvider,
+) {
   return queryOptions({
-    queryKey: ['session', 'chat', sessionId],
-    queryFn: () => getChatMessages({ data: { sessionId, projectPath } }),
-    staleTime: 60_000,
+    queryKey: ['session', 'chat', sessionId, provider],
+    queryFn: () => getChatMessages({ data: { sessionId, projectPath, provider } }),
+    staleTime: 30_000,
   })
 }

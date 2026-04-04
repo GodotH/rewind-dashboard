@@ -1,25 +1,60 @@
 import * as path from 'node:path'
 import * as fs from 'node:fs'
 import { createServerFn } from '@tanstack/react-start'
-import { getProjectsDir, decodeProjectDirName, extractProjectName } from '@/lib/utils/claude-path'
+import {
+  getProjectsDir,
+  decodeProjectDirName,
+  extractProjectName,
+  getCodexSessionsDir,
+} from '@/lib/utils/claude-path'
 import { parseDetail } from '@/lib/parsers/session-parser'
+import type { SessionProvider } from '@/lib/parsers/types'
 
 export const getSessionDetail = createServerFn({ method: 'GET' })
-  .inputValidator((input: { sessionId: string; projectPath: string }) => input)
+  .inputValidator(
+    (input: {
+      sessionId: string
+      projectPath: string
+      provider?: SessionProvider
+    }) => input,
+  )
   .handler(async ({ data }) => {
-    const filePath = findSessionFile(data.sessionId, data.projectPath)
+    const provider = data.provider ?? 'claude'
+    const filePath = findSessionFile(data.sessionId, data.projectPath, provider)
     if (!filePath) {
       throw new Error(`Session not found: ${data.sessionId}`)
     }
 
-    const projectName = extractProjectName(data.projectPath)
-    return parseDetail(filePath.path, data.sessionId, data.projectPath, projectName)
+    const projectName =
+      provider === 'codex'
+        ? `Codex/${data.projectPath}`
+        : extractProjectName(data.projectPath)
+
+    return parseDetail(
+      filePath.path,
+      data.sessionId,
+      data.projectPath,
+      projectName,
+      provider,
+    )
   })
 
 function findSessionFile(
   sessionId: string,
   projectPath: string,
+  provider: SessionProvider,
 ): { path: string; dirName: string } | null {
+  if (provider === 'codex') {
+    const codexDir = getCodexSessionsDir()
+    // projectPath for codex is relative path from sessions dir, e.g. "2026/04/03"
+    // sessionId for codex is rollout-2026-04-03... (full filename without extension)
+    const filePath = path.join(codexDir, projectPath, `${sessionId}.jsonl`)
+    if (fs.existsSync(filePath)) {
+      return { path: filePath, dirName: projectPath }
+    }
+    return null
+  }
+
   const projectsDir = getProjectsDir()
 
   // Try to find via projectPath

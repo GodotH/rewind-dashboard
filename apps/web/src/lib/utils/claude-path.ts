@@ -32,7 +32,29 @@ export function getHistoryPath(): string {
  * which maps to "/Users/username/Documents/GitHub/foo"
  */
 export function decodeProjectDirName(dirName: string): string {
-  // Replace leading dash with / and all other dashes with /
+  // Claude Code's encoding is lossy: \, /, :, _, and literal - all become -
+  // When -- exists, it reliably marks a path separator or special char boundary,
+  // so single - can be kept as a literal hyphen (preserves names like fiscal-26).
+  // When no -- exists (pure Unix paths), every - is a path separator.
+
+  const hasDoubleDash = dirName.includes('--')
+
+  if (hasDoubleDash) {
+    // Windows-style path: "C--Users-godot--work-fiscal-26"
+    const driveMatch = dirName.match(/^([A-Za-z])--(.*)$/)
+    if (driveMatch) {
+      const rest = driveMatch[2].replace(/--/g, '/').replace(/-/g, '-')
+      return `${driveMatch[1].toUpperCase()}:/${rest}`
+    }
+    // Unix path with special chars (e.g. underscore dirs): "--" marks separators
+    if (dirName.startsWith('-')) {
+      const rest = dirName.slice(1).replace(/--/g, '/').replace(/-/g, '-')
+      return `/${rest}`
+    }
+    return dirName.replace(/--/g, '/').replace(/-/g, '-')
+  }
+
+  // No double-dash: plain Unix path, every - is a path separator
   return dirName.replace(/^-/, '/').replace(/-/g, '/')
 }
 

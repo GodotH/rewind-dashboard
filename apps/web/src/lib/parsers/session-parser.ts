@@ -156,7 +156,8 @@ export async function parseDetail(
   const stream = fs.createReadStream(filePath, { encoding: 'utf-8' })
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity })
 
-  for await (const line of rl) {
+  try {
+    for await (const line of rl) {
     const msg = safeParse(line)
     if (!msg || msg.type === 'file-history-snapshot') continue
 
@@ -445,6 +446,10 @@ export async function parseDetail(
         toolCalls,
       })
     }
+  }
+  } finally {
+    rl.close()
+    stream.destroy()
   }
 
   // Merge accumulated progress stats into agents

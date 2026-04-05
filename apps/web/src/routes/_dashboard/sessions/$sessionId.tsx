@@ -208,7 +208,7 @@ function SessionDetailPage() {
         <div className="flex items-center gap-2">
           <DetailPinButton sessionId={sessionId} pinned={sessionMeta?.pinned ?? false} />
           <DetailRenameButton sessionId={sessionId} currentName={sessionMeta?.customName || ''} />
-          <LaunchButton sessionId={sessionId} cwd={detail.projectPath} size="md" />
+          <LaunchButton sessionId={sessionId} cwd={detail.cwd || detail.projectPath} size="md" />
           <ExportDropdown
             options={[
               {

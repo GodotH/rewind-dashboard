@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { spawn, execSync } from 'node:child_process'
 import { homedir, tmpdir, platform } from 'node:os'
 import { join } from 'node:path'
-import { readdirSync, existsSync, readFileSync, writeFileSync, unlinkSync, chmodSync } from 'node:fs'
+import { readdirSync, existsSync, readFileSync, writeFileSync, unlinkSync, chmodSync, openSync, readSync, closeSync } from 'node:fs'
 
 function launchSessionPlugin(): Plugin {
   return {
@@ -31,11 +31,19 @@ function launchSessionPlugin(): Plugin {
               for (const d of dirs) {
                 const jsonl = join(projDir, d, sessionId + '.jsonl')
                 if (existsSync(jsonl)) {
-                  const firstLine = readFileSync(jsonl, 'utf8').split('\n')[0]
-                  try {
-                    const parsed = JSON.parse(firstLine)
-                    if (parsed.cwd) { sessionCwd = parsed.cwd; break }
-                  } catch {}
+                  const fd = openSync(jsonl, 'r')
+                  const buf = Buffer.alloc(4096)
+                  const bytesRead = readSync(fd, buf, 0, 4096, 0)
+                  closeSync(fd)
+                  const headLines = buf.toString('utf8', 0, bytesRead).split('\n')
+                  for (const headLine of headLines) {
+                    if (!headLine.trim()) continue
+                    try {
+                      const parsed = JSON.parse(headLine)
+                      if (parsed.cwd) { sessionCwd = parsed.cwd; break }
+                    } catch {}
+                  }
+                  if (sessionCwd !== (cwd || home)) break
                 }
               }
             } catch {}

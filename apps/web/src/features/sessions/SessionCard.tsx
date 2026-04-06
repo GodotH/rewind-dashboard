@@ -173,7 +173,7 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
 
         <div className="flex shrink-0 items-center gap-1.5">
           <HideButton projectPath={session.projectPath} />
-          <LaunchButton sessionId={session.sessionId} cwd={session.projectPath} />
+          <LaunchButton sessionId={session.sessionId} cwd={session.cwd || session.projectPath} />
           <OverflowMenu
             sessionId={session.sessionId}
             onStartRename={() => setIsRenaming(true)}

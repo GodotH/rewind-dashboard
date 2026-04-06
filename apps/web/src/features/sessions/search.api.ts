@@ -69,36 +69,38 @@ async function searchFile(filePath: string, query: string): Promise<{ snippet: s
   const stream = fs.createReadStream(filePath, { encoding: 'utf-8' })
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity })
 
-  for await (const line of rl) {
-    if (!line.trim()) continue
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let msg: any
-    try {
-      msg = JSON.parse(line)
-    } catch (_) {
-      continue
-    }
+  try {
+    for await (const line of rl) {
+      if (!line.trim()) continue
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let msg: any
+      try {
+        msg = JSON.parse(line)
+      } catch (_) {
+        continue
+      }
 
-    if (msg.type !== 'user' && msg.type !== 'assistant') continue
-    const content = msg.message?.content
-    if (!content || !Array.isArray(content)) continue
+      if (msg.type !== 'user' && msg.type !== 'assistant') continue
+      const content = msg.message?.content
+      if (!content || !Array.isArray(content)) continue
 
-    for (const block of content) {
-      if (block.type === 'text' && block.text) {
-        const text = block.text as string
-        const idx = text.toLowerCase().indexOf(query)
-        if (idx !== -1) {
-          // Extract snippet around the match
-          const start = Math.max(0, idx - 40)
-          const end = Math.min(text.length, idx + query.length + 80)
-          const snippet = (start > 0 ? '...' : '') + text.slice(start, end).trim() + (end < text.length ? '...' : '')
-          rl.close()
-          stream.destroy()
-          return { snippet, timestamp: (msg.timestamp as string) ?? '' }
+      for (const block of content) {
+        if (block.type === 'text' && block.text) {
+          const text = block.text as string
+          const idx = text.toLowerCase().indexOf(query)
+          if (idx !== -1) {
+            const start = Math.max(0, idx - 40)
+            const end = Math.min(text.length, idx + query.length + 80)
+            const snippet = (start > 0 ? '...' : '') + text.slice(start, end).trim() + (end < text.length ? '...' : '')
+            return { snippet, timestamp: (msg.timestamp as string) ?? '' }
+          }
         }
       }
     }
-  }
 
-  return null
+    return null
+  } finally {
+    rl.close()
+    stream.destroy()
+  }
 }

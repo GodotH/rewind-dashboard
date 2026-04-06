@@ -90,11 +90,13 @@ describe('claude-path', () => {
   })
 
   describe('decodeProjectDirName', () => {
-    it('decodes leading dash to slash', () => {
+    // --- Unix paths (no double-dash) ---
+
+    it('decodes leading dash to slash (Unix)', () => {
       expect(decodeProjectDirName('-Users-username-project')).toBe('/Users/username/project')
     })
 
-    it('decodes a typical encoded project directory name', () => {
+    it('decodes a typical encoded Unix project directory name', () => {
       expect(decodeProjectDirName('-Users-alice-Documents-GitHub-myproject')).toBe(
         '/Users/alice/Documents/GitHub/myproject'
       )
@@ -104,20 +106,53 @@ describe('claude-path', () => {
       expect(decodeProjectDirName('-project')).toBe('/project')
     })
 
-    it('converts all dashes to slashes after leading dash is replaced', () => {
+    it('converts all dashes to slashes for pure Unix paths', () => {
       const result = decodeProjectDirName('-a-b-c-d')
       expect(result).toBe('/a/b/c/d')
     })
 
-    it('handles a path with no dashes (returns string unchanged if no leading dash)', () => {
-      // No leading dash means no replacement of leading char
+    it('handles a path with no dashes (returns string unchanged)', () => {
       const result = decodeProjectDirName('nodash')
       expect(result).toBe('nodash')
     })
 
-    it('handles deep nested paths', () => {
+    it('handles deep nested Unix paths', () => {
       expect(decodeProjectDirName('-home-user-work-clients-acme-frontend')).toBe(
         '/home/user/work/clients/acme/frontend'
+      )
+    })
+
+    // --- Windows paths (double-dash present) ---
+
+    it('decodes Windows drive letter with double-dash', () => {
+      expect(decodeProjectDirName('C--Users-godot--work')).toBe('C:/Users-godot/work')
+    })
+
+    it('preserves literal hyphens in folder names on Windows', () => {
+      expect(decodeProjectDirName('C--Users-godot--work-fiscal-26')).toBe(
+        'C:/Users-godot/work-fiscal-26'
+      )
+    })
+
+    it('preserves hyphens in nested Windows paths', () => {
+      expect(decodeProjectDirName('C--Users-godot--work-fiscal-26-forms')).toBe(
+        'C:/Users-godot/work-fiscal-26-forms'
+      )
+    })
+
+    it('handles Windows OneDrive paths with underscore dirs', () => {
+      expect(decodeProjectDirName('C--Users-godot-OneDrive--LIVE--CODE-quickfax')).toBe(
+        'C:/Users-godot-OneDrive/LIVE/CODE-quickfax'
+      )
+    })
+
+    it('handles Windows root path', () => {
+      expect(decodeProjectDirName('C--')).toBe('C:/')
+    })
+
+    it('handles Unix path with double-dash (underscore dirs)', () => {
+      expect(decodeProjectDirName('-home-user--work-my-project')).toBe(
+        '/home-user/work-my-project'
       )
     })
   })

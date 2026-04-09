@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 
 const STORAGE_KEY = 'claude-dashboard:page-size'
 const VALID_SIZES = [5, 10, 25, 50] as const
-const DEFAULT_SIZE = 5
+const DEFAULT_SIZE = 25
 
 type ValidPageSize = (typeof VALID_SIZES)[number]
 

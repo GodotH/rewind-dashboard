@@ -47,3 +47,30 @@ body {
   color: var(--color-gray-100);
   transition: background-color 150ms ease, color 150ms ease;
 }
+
+@keyframes neon-pulse {
+  0%, 100% { text-shadow: 0 0 4px rgba(217, 119, 87, 0.3), 0 0 12px rgba(217, 119, 87, 0.1); }
+  50% { text-shadow: 0 0 8px rgba(217, 119, 87, 0.5), 0 0 20px rgba(217, 119, 87, 0.2); }
+}
+
+.neon-glow-brand {
+  animation: neon-pulse 3s ease-in-out infinite;
+}
+
+@keyframes neon-pulse-green {
+  0%, 100% { text-shadow: 0 0 4px rgba(52, 211, 153, 0.3), 0 0 12px rgba(52, 211, 153, 0.1); }
+  50% { text-shadow: 0 0 8px rgba(52, 211, 153, 0.5), 0 0 20px rgba(52, 211, 153, 0.2); }
+}
+
+.neon-glow-green {
+  animation: neon-pulse-green 3s ease-in-out infinite;
+}
+
+@keyframes working-glow-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(0, 255, 65, 0.08), inset 0 0 3px rgba(0, 255, 65, 0.03); }
+  50% { box-shadow: 0 0 18px rgba(0, 255, 65, 0.25), inset 0 0 8px rgba(0, 255, 65, 0.06); }
+}
+
+.working-glow {
+  animation: working-glow-pulse 2s ease-in-out infinite;
+}

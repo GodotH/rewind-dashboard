@@ -4,5 +4,6 @@ import { getStats } from './stats.api'
 export const statsQuery = queryOptions({
   queryKey: ['stats'],
   queryFn: () => getStats(),
-  refetchInterval: 60_000,
+  staleTime: 120_000,
+  refetchInterval: 120_000,
 })

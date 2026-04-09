@@ -253,7 +253,7 @@ describe('usePageSizePreference', () => {
     })
 
     it('should export DEFAULT_SIZE as expected', () => {
-      expect(DEFAULT_SIZE).toBe(5)
+      expect(DEFAULT_SIZE).toBe(25)
     })
   })
 })

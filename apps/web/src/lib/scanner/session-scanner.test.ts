@@ -8,6 +8,7 @@ vi.mock('./project-scanner', () => ({
 }))
 
 vi.mock('../utils/claude-path', () => ({
+  getClaudeDir: vi.fn(() => '/mock/claude'),
   getProjectsDir: vi.fn(() => '/mock/projects'),
   extractSessionId: vi.fn((filename: string) => filename.replace(/\.jsonl$/, '')),
 }))
@@ -41,10 +42,13 @@ function makeSummary(overrides: Partial<SessionSummary> = {}): SessionSummary {
     userMessageCount: 5,
     assistantMessageCount: 5,
     isActive: false,
+    sessionState: 'inactive' as const,
     model: 'claude-opus-4-6',
     version: '1.0.0',
     fileSizeBytes: 1024,
+    totalTokens: 0,
     firstUserMessage: null,
+    claudeName: null,
     ...overrides,
   }
 }

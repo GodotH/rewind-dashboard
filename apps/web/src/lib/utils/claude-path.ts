@@ -60,29 +60,40 @@ export function decodeProjectDirName(dirName: string): string {
 
 /**
  * Extract a meaningful project name from a decoded path.
- * Uses last 2 significant segments to avoid ambiguous names like "1" or "ai".
+ * Returns the last path segment as the project name.
+ * If the last segment is purely numeric, prepends the parent segment for context.
+ * Strips leading noise-word prefixes that result from lossy path decoding
+ * (e.g. "work-fiscal-26" → "fiscal-26" because "work" was a separate directory).
  *
+ * "C:/Users-godot/work-fiscal-26" -> "fiscal-26"
  * "/Users/user/projects/mycallagent" -> "mycallagent"
  * "/Users/user/AGENTS/CRM/1" -> "CRM/1"
- * "/Users/user/CODE/mycallagent/ai" -> "mycallagent/ai"
- * "C//" -> "C"
+ * "C:/Users-godot-OneDrive/LIVE/CODE-rewind-dashboard" -> "rewind-dashboard"
  */
 export function extractProjectName(decodedPath: string): string {
-  // Split and filter empty/common noise segments
-  const noise = new Set(['users', 'home', 'documents', 'github', 'onedrive', '_live', '_code', '_work', 'projects', 'code', 'work', 'c', 'live'])
   const segments = decodedPath.split('/').filter(Boolean)
-  const meaningful = segments.filter((s) => !noise.has(s.toLowerCase()))
+  if (segments.length === 0) return decodedPath
 
-  if (meaningful.length === 0) return segments[segments.length - 1] || decodedPath
-  if (meaningful.length === 1) return meaningful[0]
+  let basename = segments[segments.length - 1]
 
-  // Use more parent context if basename alone is too short/generic
-  const basename = meaningful[meaningful.length - 1]
-  if (basename.length <= 3 || /^\d+$/.test(basename)) {
-    // Take up to 3 segments for very short names
-    const take = meaningful.length >= 3 ? 3 : 2
-    return meaningful.slice(-take).join('/')
+  // Strip leading noise-word prefixes caused by lossy path decoding.
+  // E.g. "work-fiscal-26" → "fiscal-26" (because "work\" became "work-")
+  // E.g. "CODE-rewind-dashboard" → "rewind-dashboard"
+  const noise = new Set(['users', 'home', 'documents', 'github', 'onedrive', 'projects', 'code', 'work', 'c', 'live'])
+  const dashIdx = basename.indexOf('-')
+  if (dashIdx > 0) {
+    const prefix = basename.slice(0, dashIdx)
+    if (noise.has(prefix.toLowerCase())) {
+      basename = basename.slice(dashIdx + 1)
+    }
   }
+
+  // If basename is purely numeric (e.g. "1", "26"), prepend parent for context
+  if (/^\d+$/.test(basename) && segments.length >= 2) {
+    const parent = segments[segments.length - 2]
+    return `${parent}/${basename}`
+  }
+
   return basename
 }
 

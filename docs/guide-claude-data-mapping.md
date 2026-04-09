@@ -121,13 +121,20 @@ Only parsed when viewing a session detail that has agent dispatches. Linked via 
 
 **Path:** `~/.claude/projects/<dir>/<session-id>/` (directory, not file)
 
-| Check | Condition | Meaning |
-|---|---|---|
-| File mtime | `<session-id>.jsonl` modified < 2 minutes ago | Session recently active |
-| Lock directory | `<session-id>/` directory exists | Claude Code process running |
-| **Active** | **Both true** | Session is currently active |
+Two detection strategies (Claude Code versions differ in lock directory behavior):
 
-Polled via React Query: 3s when active sessions exist, 30s otherwise.
+| Strategy | Condition | Threshold | Notes |
+|---|---|---|---|
+| **Lock dir + mtime** | Lock directory exists AND JSONL mtime recent | 15 minutes | Covers long generations + user think time. Trade-off: orphaned locks persist up to 15 min. |
+| **Mtime only** | No lock directory, JSONL mtime recent | 2 minutes | Tight window since there's no lock signal. Avoids ghost sessions after shutdown. |
+
+**Known issues (as of Claude Code ~2.x, April 2026):**
+- Lock directories are NOT reliably created at session start — may appear seconds to minutes after the JSONL is first written
+- Lock directories are NOT reliably cleaned up on session exit — orphaned dirs persist indefinitely
+- JSONL mtime only updates when a message turn completes, NOT while Claude is generating — active sessions can appear idle during long generations
+- Because of these limitations, the dashboard uses a dual-strategy approach: lock dir as a signal booster (wider threshold) with mtime-only as a fallback (tighter threshold)
+
+Polled via React Query: 3s for active session list, 5s for paginated list when active sessions exist, 30s otherwise.
 
 ---
 

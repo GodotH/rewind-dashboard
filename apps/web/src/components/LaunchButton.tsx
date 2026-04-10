@@ -58,31 +58,31 @@ export function LaunchButton({ sessionId, cwd, size = 'sm', isActive }: LaunchBu
         <span className={`shrink-0 border border-matrix/20 bg-matrix/10 ${padding} text-xs font-medium text-matrix/40`}>
           Launch
         </span>
-        <span className="absolute right-0 bottom-full mb-1 z-50 flex flex-col gap-1.5 border border-matrix/20 bg-gray-950 p-2.5 shadow-lg shadow-black/50" style={{ minWidth: '180px' }}>
-          <span className="text-[10px] font-mono text-matrix/50">Launch with --skip-permissions</span>
+        <span className="absolute right-0 bottom-full mb-1 z-50 flex flex-col gap-2.5 border border-matrix/20 bg-gray-950 p-2.5 shadow-lg shadow-black/50" style={{ minWidth: '180px' }}>
+          <span className="text-xs font-mono text-matrix/50 leading-tight text-center w-full">Launch session with<br />--skip-permissions</span>
           <span className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); launch() }}
-              className="shrink-0 border border-matrix/30 bg-matrix/15 px-2.5 py-0.5 text-xs font-bold text-matrix transition-colors hover:bg-matrix/25"
+              className="flex-1 border border-matrix/30 bg-matrix/15 py-0.5 text-xs font-bold text-matrix text-center transition-colors hover:bg-matrix/25"
             >
               YEAH
             </button>
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); cancel() }}
-              className="shrink-0 border border-matrix/20 bg-matrix/10 px-2.5 py-0.5 text-xs font-medium text-matrix/60 transition-colors hover:bg-matrix/15"
+              className="flex-1 border border-matrix/20 bg-matrix/10 py-0.5 text-xs font-medium text-matrix/60 text-center transition-colors hover:bg-matrix/15"
             >
               NOPE
             </button>
-            <button
-              type="button"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); cancel() }}
-              className="shrink-0 border border-gray-700 bg-gray-800/50 px-2.5 py-0.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-700"
-            >
-              CANCEL
-            </button>
           </span>
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); cancel() }}
+            className="w-full border border-gray-700 bg-gray-800/50 py-0.5 text-xs font-medium text-gray-500 text-center transition-colors hover:bg-gray-700"
+          >
+            CANCEL
+          </button>
           <span className="text-[9px] text-gray-600 font-mono">enter → yeah · esc → cancel</span>
         </span>
       </span>

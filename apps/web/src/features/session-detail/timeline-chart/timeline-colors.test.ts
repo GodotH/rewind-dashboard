@@ -8,8 +8,8 @@ import {
 describe('shortenToolName', () => {
   it('shortens MCP plugin tool names to the action part', () => {
     expect(
-      shortenToolName('mcp__plugin_playwright_playwright__browser_navigate'),
-    ).toBe('browser_navigate')
+      shortenToolName('mcp__plugin_agent_browser_agent_browser__open'),
+    ).toBe('open')
   })
 
   it('shortens MCP tools with hyphenated action names', () => {

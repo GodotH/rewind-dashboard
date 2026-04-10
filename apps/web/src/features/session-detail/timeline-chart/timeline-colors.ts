@@ -1,6 +1,6 @@
 /**
  * Shorten long MCP tool names for display.
- * e.g. "mcp__plugin_playwright_playwright__browser_navigate" → "browser_navigate"
+ * e.g. "mcp__plugin_agent_browser_agent_browser__open" → "open"
  * e.g. "mcp__plugin_context7_context7__resolve-library-id" → "resolve-library-id"
  */
 export function shortenToolName(name: string): string {

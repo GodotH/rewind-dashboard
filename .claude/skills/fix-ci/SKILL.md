@@ -36,7 +36,7 @@ Read the logs and classify the failure:
 | **typecheck** | `error TS`, `tsc --noEmit` |
 | **lint** | `eslint`, `warning`/`error` with rule names |
 | **unit test** | `vitest`, `FAIL`, `expect(` |
-| **e2e test** | `playwright`, `spec.ts`, `timeout`, `locator` |
+| **e2e test** | `agent-browser`, `smoke`, `timeout`, `selector` |
 | **build** | `npm run build`, `vite build`, `rollup` |
 | **dependency** | `npm ci`, `ERESOLVE`, `peer dep` |
 
@@ -57,18 +57,18 @@ Run the failing CI step locally from `apps/web/`:
 
 If reproducing a specific test:
 - Unit: `npx vitest run <test-file>`
-- E2E: `npx playwright test <spec-file>`
+- E2E: `npm run e2e`
 
-### 4. Investigate with Playwright (if E2E failure)
+### 4. Investigate with agent-browser (if E2E failure)
 
 If the failure is an E2E test or a visual/runtime bug:
 
 1. Start the dev server if not running: check `lsof -i :3000`
-2. Navigate to the failing page: `mcp__playwright__browser_navigate`
-3. Take a screenshot: `mcp__playwright__browser_take_screenshot`
-4. Check console errors: `mcp__playwright__browser_console_messages`
-5. Check network failures: `mcp__playwright__browser_network_requests`
-6. Get the accessibility tree: `mcp__playwright__browser_snapshot`
+2. Navigate to the failing page: `agent-browser open <url>`
+3. Take a screenshot: `agent-browser screenshot`
+4. Check console errors: `agent-browser console`
+5. Check network failures: `agent-browser network requests`
+6. Get the accessibility tree: `agent-browser snapshot -i`
 7. Interact as the test would — click, fill forms, etc.
 8. Compare actual behavior with what the test expects
 
@@ -116,4 +116,4 @@ Output a summary:
   - Different Node.js versions
   - CI-specific caching issues
 - Don't disable or skip tests to "fix" CI — fix the underlying issue
-- Close the Playwright browser when done: `mcp__playwright__browser_close`
+- Close the browser when done: `agent-browser close`

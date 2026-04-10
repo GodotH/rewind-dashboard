@@ -39,9 +39,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "e2e": "playwright test",
-    "e2e:ui": "playwright test --ui",
-    "e2e:headed": "playwright test --headed",
+    "e2e": "bash ./e2e/agent-browser-smoke.sh",
+    "e2e:headed": "AGENT_BROWSER_HEADED=1 bash ./e2e/agent-browser-smoke.sh",
     "lint": "eslint src/",
     "prepublishOnly": "npm run build"
   },
@@ -60,7 +59,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.1.0",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.2.3",

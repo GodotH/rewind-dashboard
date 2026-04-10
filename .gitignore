@@ -8,8 +8,6 @@ dist/
 .env.*
 .claude/settings.local.json
 **/agent-memory/
-.playwright-mcp/
-playwright-report/
 test-results/
 coverage/
 blob-report/

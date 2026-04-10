@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Vitest and Playwright testing patterns, conventions, and gotchas for this project.
+description: Vitest and agent-browser testing patterns, conventions, and gotchas for this project.
 user-invocable: true
 ---
 
@@ -31,8 +31,8 @@ import { doThing } from './module'
 - Mock external services, not internal functions
 - "close timed out" warning after Vitest is a known nitro issue — ignore
 
-## Playwright (E2E)
-- Config: `apps/web/playwright.config.ts`
-- Tests: `apps/web/e2e/`
-- Run: `npm run test:e2e` from `apps/web/`
-- Use `page.getByRole()`, `page.getByText()` over CSS selectors
+## agent-browser (E2E)
+- Smoke suite: `apps/web/e2e/agent-browser-smoke.sh`
+- Fixtures: `apps/web/e2e/fixtures/.claude/`
+- Run: `npm run e2e` from `apps/web/`
+- Prefer `snapshot -i` refs and semantic assertions over brittle selectors

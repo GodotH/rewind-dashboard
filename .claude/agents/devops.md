@@ -31,5 +31,5 @@ Migration management:
 - Test locally with `supabase db reset` before pushing
 
 E2E in CI:
-- Use `npx playwright install --with-deps` in CI setup
-- E2E tests run via `npm run test:e2e` in the CI pipeline
+- Use `agent-browser install` in CI setup
+- E2E tests run via `npm run e2e` in the CI pipeline

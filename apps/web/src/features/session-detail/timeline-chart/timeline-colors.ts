@@ -17,9 +17,9 @@ const TOOL_COLORS: Record<string, string> = {
   Glob: '#e09070',
 
   // File writing
-  Write: '#34d399', // emerald-400
-  Edit: '#34d399',
-  NotebookEdit: '#34d399',
+  Write: '#00ff41', // matrix green
+  Edit: '#00ff41',
+  NotebookEdit: '#00ff41',
 
   // Shell execution
   Bash: '#fbbf24', // amber-400
@@ -55,7 +55,7 @@ export function getToolColor(toolName: string): string {
 export function getToolColorClass(toolName: string): string {
   const colorMap: Record<string, string> = {
     '#e09070': 'text-brand-400',
-    '#34d399': 'text-emerald-400',
+    '#00ff41': 'text-matrix',
     '#fbbf24': 'text-amber-400',
     '#818cf8': 'text-indigo-400',
     '#c084fc': 'text-purple-400',

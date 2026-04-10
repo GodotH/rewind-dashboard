@@ -56,7 +56,7 @@ export async function paginateAndFilterSessions(
       .map(([k]) => k),
   )
   if (hiddenProjects.size > 0 && !project) {
-    allSessions = allSessions.filter((s) => !hiddenProjects.has(s.projectPath))
+    allSessions = allSessions.filter((s) => s.isActive || !hiddenProjects.has(s.projectPath))
   }
 
   // Extract distinct project names from (non-hidden) set

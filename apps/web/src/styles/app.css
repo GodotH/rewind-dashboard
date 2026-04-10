@@ -20,6 +20,9 @@
   --color-brand-500: #d97757;
   --color-brand-600: #c4643f;
   --color-brand-700: #a8512e;
+
+  /* Matrix green accent */
+  --color-matrix: #00ff41;
 }
 
 :root {
@@ -58,8 +61,8 @@ body {
 }
 
 @keyframes neon-pulse-green {
-  0%, 100% { text-shadow: 0 0 4px rgba(52, 211, 153, 0.3), 0 0 12px rgba(52, 211, 153, 0.1); }
-  50% { text-shadow: 0 0 8px rgba(52, 211, 153, 0.5), 0 0 20px rgba(52, 211, 153, 0.2); }
+  0%, 100% { text-shadow: 0 0 4px rgba(0, 255, 65, 0.3), 0 0 12px rgba(0, 255, 65, 0.1); }
+  50% { text-shadow: 0 0 8px rgba(0, 255, 65, 0.5), 0 0 20px rgba(0, 255, 65, 0.2); }
 }
 
 .neon-glow-green {
@@ -73,4 +76,14 @@ body {
 
 .working-glow {
   animation: working-glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes terminal-progress {
+  0% { width: 0%; margin-left: 0%; }
+  50% { width: 40%; margin-left: 30%; }
+  100% { width: 0%; margin-left: 100%; }
+}
+
+.animate-terminal-progress {
+  animation: terminal-progress 2s ease-in-out infinite;
 }

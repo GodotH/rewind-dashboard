@@ -14,7 +14,7 @@ export function RunningTimer({ startedAt }: { startedAt: string }) {
   }, [startedAt])
 
   return (
-    <span className="text-emerald-400">
+    <span className="text-matrix">
       {formatDuration(elapsed)}
     </span>
   )

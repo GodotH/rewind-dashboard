@@ -11,6 +11,7 @@ import { ModelUsageChart } from '@/features/stats/ModelUsageChart'
 import { HourlyDistribution } from '@/features/stats/HourlyDistribution'
 import { SessionCard } from '@/features/sessions/SessionCard'
 import { ExportDropdown } from '@/components/ExportDropdown'
+import { TerminalLoader } from '@/components/TerminalLoader'
 import {
   dailyActivityToCSV,
   dailyTokensToCSV,
@@ -102,18 +103,9 @@ function DashboardPage() {
   if (statsLoading && sessionsLoading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-gray-100">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-matrix">Dashboard</h1>
         <p className="mt-1 text-sm text-gray-400">Overview of your Claude Code activity</p>
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-20 animate-pulse rounded-xl border border-gray-800 bg-gray-900/50" />
-          ))}
-        </div>
-        <div className="mt-6 space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-40 animate-pulse rounded-xl border border-gray-800 bg-gray-900/50" />
-          ))}
-        </div>
+        <TerminalLoader />
       </div>
     )
   }
@@ -122,7 +114,7 @@ function DashboardPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-100">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-matrix">Dashboard</h1>
           <p className="mt-1 text-sm text-gray-400">Overview of your Claude Code activity</p>
         </div>
         {stats && (
@@ -154,17 +146,17 @@ function DashboardPage() {
         <div className="grid grid-cols-4 gap-4 md:gap-6">
           <Link to="/sessions" className="group">
             <p className="text-[10px] uppercase tracking-wide text-gray-500">Sessions</p>
-            <p className="mt-1 text-xl font-bold text-gray-100 group-hover:text-emerald-400 transition-colors">{stats ? String(stats.totalSessions) : '--'}</p>
+            <p className="mt-1 text-xl font-bold text-gray-100 group-hover:text-matrix transition-colors">{stats ? String(stats.totalSessions) : '--'}</p>
             <p className="text-xs text-gray-500">{thisWeekSessions} this week</p>
           </Link>
           <Link to="/sessions" className="group">
             <p className="text-[10px] uppercase tracking-wide text-gray-500">Messages</p>
-            <p className="mt-1 text-xl font-bold text-gray-100 group-hover:text-emerald-400 transition-colors">{stats ? stats.totalMessages.toLocaleString() : '--'}</p>
+            <p className="mt-1 text-xl font-bold text-gray-100 group-hover:text-matrix transition-colors">{stats ? stats.totalMessages.toLocaleString() : '--'}</p>
             <p className="text-xs text-gray-500">{stats ? formatDuration(stats.longestSession.duration) : '--'} longest</p>
           </Link>
           <div>
             <p className="text-[10px] uppercase tracking-wide text-gray-500">Tokens</p>
-            <p className="mt-1 text-xl font-bold text-emerald-400/80">{periods ? formatTokenCount(periods.total.totalTokens) : '--'}</p>
+            <p className="mt-1 text-xl font-bold text-matrix/80">{periods ? formatTokenCount(periods.total.totalTokens) : '--'}</p>
             <p className="text-xs text-gray-500">{periods ? formatTokenCount(periods.week.totalTokens) : '--'} 7d</p>
           </div>
           <div>
@@ -173,6 +165,36 @@ function DashboardPage() {
             <p className="text-xs text-gray-500">{periods ? `${periods.today.sessionCount} today` : ''}</p>
           </div>
         </div>
+
+        {/* Tokens & Cost period breakdown */}
+        {periods && (
+          <>
+            <div className="my-3 border-t border-gray-800" />
+            <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-2">Tokens & Cost</p>
+            <div className="grid grid-cols-4 gap-4 md:gap-6">
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-500">Today</p>
+                <p className="mt-1 text-xl font-bold text-gray-100">{formatTokenCount(periods.today.totalTokens)}</p>
+                <p className="text-xs text-gray-500">{periods.today.sessionCount} sessions</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-500">7 Days</p>
+                <p className="mt-1 text-xl font-bold text-gray-100">{formatTokenCount(periods.week.totalTokens)}</p>
+                <p className="text-xs text-gray-500">{periods.week.sessionCount} sessions</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-500">30 Days</p>
+                <p className="mt-1 text-xl font-bold text-gray-100">{formatTokenCount(periods.month.totalTokens)}</p>
+                <p className="text-xs text-gray-500">{periods.month.sessionCount} sessions</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-gray-500">All Time</p>
+                <p className="mt-1 text-xl font-bold text-gray-100">{formatTokenCount(periods.total.totalTokens)}</p>
+                <p className="text-xs text-gray-500">{cost ? `~${formatUSD(cost.totalUSD)}` : ''}</p>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Recent Sessions — uses SessionCard like sessions tab */}

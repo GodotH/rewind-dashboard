@@ -269,7 +269,7 @@ function TokenBreakdown({ tokens }: { tokens: TokenUsage }) {
 
   const items = [
     { label: 'Input', value: tokens.inputTokens, color: 'bg-brand-400' },
-    { label: 'Output', value: tokens.outputTokens, color: 'bg-emerald-400' },
+    { label: 'Output', value: tokens.outputTokens, color: 'bg-matrix' },
     { label: 'Cache Read', value: tokens.cacheReadInputTokens, color: 'bg-amber-400' },
     { label: 'Cache Create', value: tokens.cacheCreationInputTokens, color: 'bg-purple-400' },
   ]
@@ -310,7 +310,7 @@ function TokenFallback({ tokens }: { tokens: TokenUsage }) {
 
   const items = [
     { label: 'Input', value: tokens.inputTokens, color: 'text-brand-400' },
-    { label: 'Output', value: tokens.outputTokens, color: 'text-emerald-400' },
+    { label: 'Output', value: tokens.outputTokens, color: 'text-matrix' },
     { label: 'Cache Read', value: tokens.cacheReadInputTokens, color: 'text-amber-400' },
     { label: 'Cache Create', value: tokens.cacheCreationInputTokens, color: 'text-purple-400' },
   ]

@@ -56,13 +56,19 @@ When a user asks to "implement X" or "add feature Y" without using a skill, you 
 
 Read-only, local-only observability dashboard for Claude Code sessions. Scans `~/.claude` to display session details, tool usage, tokens, and stats. **Never modify files in `~/.claude`.** Localhost only.
 
+## Runtime
+
+- **Port**: 3030 (dev and production)
+- **Auto-start**: Windows scheduled task `StartRewindDashboard` runs at logon
+- **Startup scripts**: `C:\Users\godot\_work\start-rewind.cmd`, `C:\Users\godot\_work\start-rewind-silent.vbs`
+
 ## Tech Stack & Commands
 
 TanStack Start (SSR on Vite), TanStack Router (file-based), TanStack React Query, Tailwind CSS v4, Recharts, Zod.
 
 ```bash
 cd apps/web
-npm run dev          # Dev server on localhost:3000
+npm run dev          # Dev server on localhost:3030
 npm run build        # Production build (known issue on Node v24 — use dev mode)
 npm run typecheck    # TypeScript checking
 npm run test         # Vitest unit tests

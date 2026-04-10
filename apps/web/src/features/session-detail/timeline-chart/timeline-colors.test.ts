@@ -42,9 +42,9 @@ describe('getToolColor', () => {
   })
 
   it('returns the correct hex color for file-writing tools', () => {
-    expect(getToolColor('Write')).toBe('#34d399')
-    expect(getToolColor('Edit')).toBe('#34d399')
-    expect(getToolColor('NotebookEdit')).toBe('#34d399')
+    expect(getToolColor('Write')).toBe('#00ff41')
+    expect(getToolColor('Edit')).toBe('#00ff41')
+    expect(getToolColor('NotebookEdit')).toBe('#00ff41')
   })
 
   it('returns the correct hex color for shell execution', () => {
@@ -91,9 +91,9 @@ describe('getToolColorClass', () => {
   })
 
   it('returns the correct Tailwind class for file-writing tools', () => {
-    expect(getToolColorClass('Write')).toBe('text-emerald-400')
-    expect(getToolColorClass('Edit')).toBe('text-emerald-400')
-    expect(getToolColorClass('NotebookEdit')).toBe('text-emerald-400')
+    expect(getToolColorClass('Write')).toBe('text-matrix')
+    expect(getToolColorClass('Edit')).toBe('text-matrix')
+    expect(getToolColorClass('NotebookEdit')).toBe('text-matrix')
   })
 
   it('returns the correct Tailwind class for shell execution', () => {

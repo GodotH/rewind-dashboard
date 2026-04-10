@@ -102,7 +102,7 @@ export function AgentDispatchesPanel({
                   </span>
                 )}
                 {agentCost != null && agentCost > 0 && (
-                  <span className="text-[10px] font-mono text-emerald-400/80">
+                  <span className="text-[10px] font-mono text-matrix/80">
                     ~{formatUSD(agentCost)}
                   </span>
                 )}

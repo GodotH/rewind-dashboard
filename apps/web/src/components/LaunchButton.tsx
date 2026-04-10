@@ -13,7 +13,7 @@ export function LaunchButton({ sessionId, cwd, size = 'sm', isActive }: LaunchBu
 
   if (isActive) {
     return (
-      <span className={`shrink-0 border border-emerald-400/30 bg-emerald-900/15 ${padding} text-xs font-medium text-emerald-400/60`}>
+      <span className={`shrink-0 border border-matrix/20 bg-matrix/10 ${padding} text-xs font-medium text-matrix/60`}>
         active
       </span>
     )
@@ -39,7 +39,7 @@ export function LaunchButton({ sessionId, cwd, size = 'sm', isActive }: LaunchBu
           setTimeout(() => setStatus('idle'), 2000)
         }
       }}
-      className={`shrink-0 border border-emerald-400/30 bg-emerald-900/15 ${padding} text-xs font-medium text-emerald-300 transition-colors hover:border-emerald-400/50 hover:bg-emerald-900/25`}
+      className={`shrink-0 border border-matrix/20 bg-matrix/10 ${padding} text-xs font-medium text-matrix transition-colors hover:border-matrix/30 hover:bg-matrix/15`}
     >
       {status === 'launched' ? 'Launched!' : status === 'error' ? 'Failed' : 'Launch'}
     </button>

@@ -138,9 +138,9 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
       search={{ project: session.projectPath }}
       className={`group relative block border p-4 transition-all ${
         session.sessionState === 'working'
-          ? 'border-emerald-400/30 bg-gray-900 working-glow hover:border-emerald-400/50'
+          ? 'border-matrix/20 bg-gray-900 working-glow hover:border-matrix/30'
           : session.sessionState === 'waiting'
-            ? 'border-emerald-800/40 bg-gray-900 hover:border-emerald-700/50'
+            ? 'border-matrix/20 bg-gray-900 hover:border-matrix/30'
             : 'border-gray-800 bg-gray-900 hover:border-gray-700 hover:bg-gray-800/80'
       }`}
     >
@@ -150,14 +150,8 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
             <InlineRename sessionId={session.sessionId} currentName={customName || ''} onClose={() => setIsRenaming(false)} />
           ) : (
             <div className="flex items-center">
-              <h3 className={`truncate border px-2 py-0.5 text-sm font-semibold ${
-                session.sessionState === 'working'
-                  ? 'border-emerald-400/40 bg-emerald-900/15 text-emerald-300'
-                  : session.sessionState === 'waiting'
-                    ? 'border-emerald-400/30 bg-emerald-900/15 text-emerald-300'
-                    : (customName || session.claudeName)
-                      ? 'border-emerald-400/30 bg-emerald-900/15 text-emerald-300'
-                      : 'border-gray-700 bg-gray-800/50 text-gray-100'
+              <h3 className={`truncate border border-matrix/20 bg-matrix/10 text-matrix px-2 py-0.5 text-sm font-semibold ${
+                session.sessionState === 'working' ? 'border-matrix/25' : ''
               }`} title={titleText}>{titleText}</h3>
               {session.sessionState !== 'inactive' && (
                 <StatusBadge isActive={session.isActive} sessionState={session.sessionState} />
@@ -192,7 +186,7 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
       </div>
 
       <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
-        {session.totalTokens > 0 && <span title="Total tokens" className="text-emerald-400/70">{formatTokenCount(session.totalTokens)} tokens</span>}
+        {session.totalTokens > 0 && <span title="Total tokens" className="text-matrix/70">{formatTokenCount(session.totalTokens)} tokens</span>}
         <span title="Duration" className="text-gray-500">
           {session.isActive ? <RunningTimer startedAt={session.startedAt} /> : formatDuration(session.durationMs)}
         </span>

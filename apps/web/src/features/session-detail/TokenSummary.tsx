@@ -10,7 +10,7 @@ export function TokenSummary({ tokens }: { tokens: TokenUsage }) {
 
   const items = [
     { label: 'Input', value: tokens.inputTokens, color: 'text-brand-400' },
-    { label: 'Output', value: tokens.outputTokens, color: 'text-emerald-400' },
+    { label: 'Output', value: tokens.outputTokens, color: 'text-matrix' },
     {
       label: 'Cache Read',
       value: tokens.cacheReadInputTokens,

@@ -13,7 +13,7 @@ export function CostSummaryLine({ tokensByModel }: CostSummaryLineProps) {
 
   return (
     <span
-      className="font-mono text-xs text-emerald-400"
+      className="font-mono text-xs text-matrix"
       title="Estimated cost based on API pricing"
     >
       ~{formatUSD(cost.totalUSD)}

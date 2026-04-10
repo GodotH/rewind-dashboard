@@ -1,4 +1,4 @@
-import { formatDistanceToNow, format } from 'date-fns'
+import { format, differenceInMinutes, differenceInHours, differenceInDays, differenceInCalendarYears } from 'date-fns'
 
 export function formatDuration(ms: number): string {
   if (ms < 1000) return '<1s'
@@ -18,7 +18,23 @@ export function formatDuration(ms: number): string {
 }
 
 export function formatRelativeTime(dateStr: string): string {
-  return formatDistanceToNow(new Date(dateStr), { addSuffix: true })
+  const date = new Date(dateStr)
+  const now = new Date()
+  const mins = differenceInMinutes(now, date)
+  const hrs = differenceInHours(now, date)
+  const days = differenceInDays(now, date)
+
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  if (hrs < 24) return `${hrs}h ago`
+  if (days < 7) {
+    const remainingHrs = hrs - days * 24
+    return remainingHrs > 0 ? `${days}d ${remainingHrs}h ago` : `${days}d ago`
+  }
+  if (differenceInCalendarYears(now, date) >= 1) {
+    return format(date, 'MMM d, yyyy')
+  }
+  return format(date, 'MMM d')
 }
 
 export function formatDateTime(dateStr: string): string {

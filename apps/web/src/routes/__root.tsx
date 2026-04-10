@@ -14,7 +14,7 @@ import appCss from '@/styles/app.css?url'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 10_000,
+      staleTime: 30_000,
       refetchOnWindowFocus: true,
     },
   },
@@ -25,7 +25,7 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'Claude Session Dashboard' },
+      { title: 'Rewind Dashboard' },
       { name: 'theme-color', content: '#141413' },
       { name: 'description', content: 'Local observability dashboard for Claude Code sessions' },
     ],

@@ -140,7 +140,18 @@ export function ProjectTable({ projects, showHidden }: ProjectTableProps) {
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      {isPinned && <span className="text-amber-400 text-xs">{'\u2605'}</span>}
+                      <button
+                        type="button"
+                        title={isPinned ? 'Unstar project' : 'Star project'}
+                        onClick={() => pinMutation.mutate({ projectPath: project.projectPath, pinned: !isPinned })}
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-xs transition-colors ${
+                          isPinned
+                            ? 'bg-amber-900/50 text-amber-400 hover:bg-amber-800/60'
+                            : 'opacity-40 hover:opacity-100 text-gray-500 hover:text-amber-400'
+                        }`}
+                      >
+                        {isPinned ? '\u2605' : '\u2606'}
+                      </button>
                       <Link
                         to="/sessions"
                         search={{ project: project.projectName }}
@@ -186,18 +197,6 @@ export function ProjectTable({ projects, showHidden }: ProjectTableProps) {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <button
-                      type="button"
-                      title={isPinned ? 'Unpin project' : 'Pin project'}
-                      onClick={() => pinMutation.mutate({ projectPath: project.projectPath, pinned: !isPinned })}
-                      className={`rounded px-1.5 py-0.5 text-xs transition-colors ${
-                        isPinned
-                          ? 'bg-amber-900/50 text-amber-400 hover:bg-amber-800/60'
-                          : 'bg-gray-800 text-gray-500 hover:text-amber-400'
-                      }`}
-                    >
-                      {'\u2605'}
-                    </button>
                     <button
                       type="button"
                       title={isHidden ? 'Unhide project' : 'Hide project'}

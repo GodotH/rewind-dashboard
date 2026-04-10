@@ -24,6 +24,7 @@ const paginatedSessionsInputSchema = z.object({
   status: z.enum(['all', 'active', 'completed']),
   project: z.string(),
   sort: z.enum(['latest', 'mostActive', 'longest', 'largest', 'starred']).default('latest'),
+  starFirst: z.boolean().default(true),
 })
 
 type PaginatedSessionsInput = z.infer<typeof paginatedSessionsInputSchema>
@@ -46,7 +47,7 @@ export async function paginateAndFilterSessions(
   input: PaginatedSessionsInput,
   metadata?: Metadata,
 ): Promise<PaginatedSessionsResult> {
-  const { page, pageSize, search, status, project, sort } = input
+  const { page, pageSize, search, status, project, sort, starFirst } = input
 
   // Filter out sessions from hidden projects
   const hiddenProjects = new Set(
@@ -102,9 +103,9 @@ export async function paginateAndFilterSessions(
   const projectMeta = metadata?.projects ?? {}
 
   if (sort === 'latest' || sort === 'starred') {
-    // Pin boost only in latest/starred modes
+    // Pin boost only when starFirst is true
     const pinnedProjectTopSession = new Set<string>()
-    if (sort === 'latest') {
+    if (starFirst && sort === 'latest') {
       const pinnedProjectPaths = new Set(
         Object.entries(projectMeta).filter(([, v]) => v.pinned).map(([k]) => k),
       )
@@ -123,14 +124,21 @@ export async function paginateAndFilterSessions(
     }
 
     filtered.sort((a, b) => {
-      const aPin = sessionMeta[a.sessionId]?.pinned ? 1 : 0
-      const bPin = sessionMeta[b.sessionId]?.pinned ? 1 : 0
-      if (aPin !== bPin) return bPin - aPin
+      // Active sessions always first
+      const aActive = a.isActive ? 1 : 0
+      const bActive = b.isActive ? 1 : 0
+      if (aActive !== bActive) return bActive - aActive
 
-      if (sort === 'latest') {
-        const aProjPin = pinnedProjectTopSession.has(a.sessionId) ? 1 : 0
-        const bProjPin = pinnedProjectTopSession.has(b.sessionId) ? 1 : 0
-        if (aProjPin !== bProjPin) return bProjPin - aProjPin
+      if (starFirst) {
+        const aPin = sessionMeta[a.sessionId]?.pinned ? 1 : 0
+        const bPin = sessionMeta[b.sessionId]?.pinned ? 1 : 0
+        if (aPin !== bPin) return bPin - aPin
+
+        if (sort === 'latest') {
+          const aProjPin = pinnedProjectTopSession.has(a.sessionId) ? 1 : 0
+          const bProjPin = pinnedProjectTopSession.has(b.sessionId) ? 1 : 0
+          if (aProjPin !== bProjPin) return bProjPin - aProjPin
+        }
       }
 
       return new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()

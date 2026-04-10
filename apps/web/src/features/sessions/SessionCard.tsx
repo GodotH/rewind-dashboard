@@ -4,7 +4,7 @@ import type { SessionSummary } from '@/lib/parsers/types'
 import type { SessionMetadataEntry, ProjectMetadataEntry } from '@/features/metadata/metadata.types'
 import { usePinSession, useRenameSession, useHideProject } from '@/features/metadata/useMetadataMutations'
 import { LaunchButton } from '@/components/LaunchButton'
-import { formatDuration, formatRelativeTime, formatBytes } from '@/lib/utils/format'
+import { formatDuration, formatRelativeTime, formatDateTime, formatBytes, formatTokenCount } from '@/lib/utils/format'
 import { usePrivacy } from '@/features/privacy/PrivacyContext'
 import { StatusBadge } from './StatusBadge'
 import { RunningTimer } from './RunningTimer'
@@ -121,7 +121,7 @@ interface SessionCardProps {
 }
 
 export function SessionCard({ session, metadata, projectMeta }: SessionCardProps) {
-  const { privacyMode, anonymizePath, anonymizeProjectName, anonymizeBranch } = usePrivacy()
+  const { privacyMode, anonymizePath, anonymizeProjectName } = usePrivacy()
   const navigate = useNavigate()
   const [isRenaming, setIsRenaming] = useState(false)
 
@@ -129,26 +129,39 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
   const customName = metadata?.customName
   const displayName = projectMeta?.customName || (privacyMode ? anonymizeProjectName(session.projectName) : session.projectName)
   const displayCwd = session.cwd ? anonymizePath(session.cwd, session.projectName) : null
-  const displayBranch = session.branch ? anonymizeBranch(session.branch) : null
-  const titleText = customName || session.firstUserMessage || displayName
+  const titleText = customName || session.claudeName || session.firstUserMessage || displayName
 
   return (
     <Link
       to="/sessions/$sessionId"
       params={{ sessionId: session.sessionId }}
       search={{ project: session.projectPath }}
-      className="group block rounded-xl border border-gray-800 bg-gray-900/50 p-4 transition-all hover:border-gray-700 hover:bg-gray-900"
+      className={`group relative block border p-4 transition-all ${
+        session.sessionState === 'working'
+          ? 'border-emerald-400/30 bg-gray-900 working-glow hover:border-emerald-400/50'
+          : session.sessionState === 'waiting'
+            ? 'border-emerald-800/40 bg-gray-900 hover:border-emerald-700/50'
+            : 'border-gray-800 bg-gray-900 hover:border-gray-700 hover:bg-gray-800/80'
+      }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           {isRenaming ? (
             <InlineRename sessionId={session.sessionId} currentName={customName || ''} onClose={() => setIsRenaming(false)} />
           ) : (
-            <div className="flex items-center gap-2">
-              <PinButton sessionId={session.sessionId} pinned={isPinned} />
-              <span className="text-gray-500 text-xs">💬</span>
-              <h3 className="truncate text-sm font-semibold text-gray-100" title={titleText}>{titleText}</h3>
-              <StatusBadge isActive={session.isActive} />
+            <div className="flex items-center">
+              <h3 className={`truncate border px-2 py-0.5 text-sm font-semibold ${
+                session.sessionState === 'working'
+                  ? 'border-emerald-400/40 bg-emerald-900/15 text-emerald-300'
+                  : session.sessionState === 'waiting'
+                    ? 'border-emerald-400/30 bg-emerald-900/15 text-emerald-300'
+                    : (customName || session.claudeName)
+                      ? 'border-emerald-400/30 bg-emerald-900/15 text-emerald-300'
+                      : 'border-gray-700 bg-gray-800/50 text-gray-100'
+              }`} title={titleText}>{titleText}</h3>
+              {session.sessionState !== 'inactive' && (
+                <StatusBadge isActive={session.isActive} sessionState={session.sessionState} />
+              )}
             </div>
           )}
           <div className="mt-1 flex items-center gap-2 truncate text-xs text-gray-500">
@@ -158,32 +171,29 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
                 e.preventDefault(); e.stopPropagation()
                 navigate({ to: '/sessions', search: (prev) => ({ ...prev, project: session.projectName, page: 1 }) })
               }}
-              className={`rounded px-1.5 py-0.5 transition-colors cursor-pointer hover:brightness-125 ${
-                projectMeta?.pinned
-                  ? 'bg-amber-900/30 text-amber-400 border border-amber-800/50'
-                  : 'bg-blue-900/20 text-blue-300 border border-blue-800/40'
-              }`}
-              title={`Filter by project: ${displayName}`}
+              className="rounded px-1.5 py-0.5 transition-colors cursor-pointer hover:brightness-125 bg-blue-900/20 text-blue-300 border border-blue-800/40"
+              title={`View project: ${displayName}`}
             >
-              {projectMeta?.pinned && '\u2605 '}Project: {displayName}
+              project: {displayName}
             </button>
-            {displayBranch && <span className="font-mono">{displayBranch}</span>}
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
+          <PinButton sessionId={session.sessionId} pinned={isPinned} />
           <HideButton projectPath={session.projectPath} />
-          <LaunchButton sessionId={session.sessionId} cwd={session.cwd || session.projectPath} />
+          <LaunchButton sessionId={session.sessionId} cwd={session.cwd || session.projectPath} isActive={session.isActive} />
           <OverflowMenu
             sessionId={session.sessionId}
             onStartRename={() => setIsRenaming(true)}
           />
-          <span className="ml-1 text-xs text-gray-500">{formatRelativeTime(session.lastActiveAt)}</span>
+          <span className="ml-1 text-xs text-gray-500" title={formatDateTime(session.lastActiveAt)}>{formatRelativeTime(session.lastActiveAt)}</span>
         </div>
       </div>
 
       <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
-        <span title="Duration">
+        {session.totalTokens > 0 && <span title="Total tokens" className="text-emerald-400/70">{formatTokenCount(session.totalTokens)} tokens</span>}
+        <span title="Duration" className="text-gray-500">
           {session.isActive ? <RunningTimer startedAt={session.startedAt} /> : formatDuration(session.durationMs)}
         </span>
         <span title="Messages">{session.messageCount} msgs</span>
@@ -196,6 +206,7 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
       </div>
 
       {displayCwd && <p className="mt-2 truncate text-xs font-mono text-gray-600">{displayCwd}</p>}
+
     </Link>
   )
 }

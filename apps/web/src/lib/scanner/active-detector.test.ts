@@ -20,7 +20,8 @@ const PROJECT_DIR = 'some-project'
 const SESSION_ID = 'session-abc-123'
 const JSONL_PATH = path.join('/fake/projects', PROJECT_DIR, `${SESSION_ID}.jsonl`)
 const LOCK_DIR_PATH = path.join('/fake/projects', PROJECT_DIR, SESSION_ID)
-const ACTIVE_THRESHOLD_MS = 3_600_000 // 1 hour
+const LOCK_THRESHOLD_MS = 900_000 // 15 minutes
+const MTIME_THRESHOLD_MS = 120_000  // 2 minutes
 
 function makeStatResult(mtimeMs: number, isDir = false) {
   return {
@@ -35,8 +36,8 @@ beforeEach(() => {
 })
 
 describe('isSessionActive', () => {
-  describe('lock directory checks (primary signal)', () => {
-    it('returns false when lock directory does not exist', async () => {
+  describe('jsonl file not found', () => {
+    it('returns false when jsonl stat throws ENOENT', async () => {
       vi.setSystemTime(1_700_000_000_000)
 
       mockStat.mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
@@ -44,90 +45,14 @@ describe('isSessionActive', () => {
       const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
 
       expect(result).toBe(false)
-      // Lock dir checked first; when missing, no jsonl check needed
       expect(mockStat).toHaveBeenCalledTimes(1)
-      expect(mockStat).toHaveBeenCalledWith(LOCK_DIR_PATH)
-    })
-
-    it('returns false when lock path exists but is a file, not a directory', async () => {
-      const now = 1_700_000_000_000
-      vi.setSystemTime(now)
-
-      mockStat.mockResolvedValueOnce(makeStatResult(now - 30_000, false)) // not a directory
-
-      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
-
-      expect(result).toBe(false)
-    })
-
-    it('returns false when lock dir stat throws', async () => {
-      vi.setSystemTime(1_700_000_000_000)
-
-      mockStat.mockRejectedValueOnce(new Error('permission denied'))
-
-      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
-
-      expect(result).toBe(false)
-    })
-  })
-
-  describe('mtime-based threshold (orphan filter)', () => {
-    it('returns true when lock dir exists and file modified within 1 hour', async () => {
-      const now = 1_700_000_000_000
-      vi.setSystemTime(now)
-
-      const mtimeMs = now - 60_000 // 1 minute ago
-
-      mockStat
-        .mockResolvedValueOnce(makeStatResult(mtimeMs, true)) // lock dir exists
-        .mockResolvedValueOnce(makeStatResult(mtimeMs)) // jsonl recent
-
-      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
-
-      expect(result).toBe(true)
-      expect(mockStat).toHaveBeenCalledWith(LOCK_DIR_PATH)
       expect(mockStat).toHaveBeenCalledWith(JSONL_PATH)
     })
 
-    it('returns false when lock dir exists but file modified more than 1 hour ago', async () => {
-      const now = 1_700_000_000_000
-      vi.setSystemTime(now)
+    it('returns false when jsonl stat throws permission error', async () => {
+      vi.setSystemTime(1_700_000_000_000)
 
-      const mtimeMs = now - ACTIVE_THRESHOLD_MS - 1 // just over 1 hour
-
-      mockStat
-        .mockResolvedValueOnce(makeStatResult(mtimeMs, true)) // lock dir exists
-        .mockResolvedValueOnce(makeStatResult(mtimeMs)) // jsonl stale
-
-      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
-
-      expect(result).toBe(false)
-    })
-
-    it('returns true when file modified exactly at the threshold boundary', async () => {
-      const now = 1_700_000_000_000
-      vi.setSystemTime(now)
-
-      const mtimeMs = now - ACTIVE_THRESHOLD_MS // exactly at boundary: age <= threshold
-
-      mockStat
-        .mockResolvedValueOnce(makeStatResult(mtimeMs, true)) // lock dir
-        .mockResolvedValueOnce(makeStatResult(mtimeMs)) // jsonl
-
-      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
-
-      expect(result).toBe(true)
-    })
-
-    it('returns false when file modified 1ms beyond the threshold', async () => {
-      const now = 1_700_000_000_000
-      vi.setSystemTime(now)
-
-      const mtimeMs = now - ACTIVE_THRESHOLD_MS - 1
-
-      mockStat
-        .mockResolvedValueOnce(makeStatResult(mtimeMs, true))
-        .mockResolvedValueOnce(makeStatResult(mtimeMs))
+      mockStat.mockRejectedValueOnce(Object.assign(new Error('EACCES'), { code: 'EACCES' }))
 
       const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
 
@@ -135,66 +60,121 @@ describe('isSessionActive', () => {
     })
   })
 
-  describe('jsonl file not found', () => {
-    it('returns false when lock dir exists but jsonl stat throws ENOENT', async () => {
-      vi.setSystemTime(1_700_000_000_000)
+  describe('with lock directory (legacy signal)', () => {
+    it('returns true when lock dir exists and mtime < 1 hour', async () => {
+      const now = 1_700_000_000_000
+      vi.setSystemTime(now)
 
       mockStat
-        .mockResolvedValueOnce(makeStatResult(0, true)) // lock dir exists
+        .mockResolvedValueOnce(makeStatResult(now - 60_000))       // jsonl recent
+        .mockResolvedValueOnce(makeStatResult(now - 60_000, true)) // lock dir exists
+
+      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
+
+      expect(result).toBe(true)
+      expect(mockStat).toHaveBeenCalledWith(JSONL_PATH)
+      expect(mockStat).toHaveBeenCalledWith(LOCK_DIR_PATH)
+    })
+
+    it('returns false when lock dir exists but mtime > 1 hour', async () => {
+      const now = 1_700_000_000_000
+      vi.setSystemTime(now)
+
+      const mtimeMs = now - LOCK_THRESHOLD_MS - 1
+
+      mockStat
+        .mockResolvedValueOnce(makeStatResult(mtimeMs))       // jsonl stale
+        .mockResolvedValueOnce(makeStatResult(mtimeMs, true)) // lock dir exists
+
+      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
+
+      expect(result).toBe(false)
+    })
+
+    it('returns true at exactly the 1-hour boundary', async () => {
+      const now = 1_700_000_000_000
+      vi.setSystemTime(now)
+
+      const mtimeMs = now - LOCK_THRESHOLD_MS
+
+      mockStat
+        .mockResolvedValueOnce(makeStatResult(mtimeMs))
+        .mockResolvedValueOnce(makeStatResult(mtimeMs, true))
+
+      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
+
+      expect(result).toBe(true)
+    })
+  })
+
+  describe('without lock directory (mtime fallback)', () => {
+    it('returns true when no lock dir and mtime < 5 minutes', async () => {
+      const now = 1_700_000_000_000
+      vi.setSystemTime(now)
+
+      mockStat
+        .mockResolvedValueOnce(makeStatResult(now - 60_000))                              // jsonl 1 min ago
+        .mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))   // no lock dir
+
+      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
+
+      expect(result).toBe(true)
+    })
+
+    it('returns false when no lock dir and mtime > 5 minutes', async () => {
+      const now = 1_700_000_000_000
+      vi.setSystemTime(now)
+
+      mockStat
+        .mockResolvedValueOnce(makeStatResult(now - MTIME_THRESHOLD_MS - 1))              // jsonl 5+ min ago
+        .mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))   // no lock dir
+
+      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
+
+      expect(result).toBe(false)
+    })
+
+    it('returns true at exactly the 5-minute boundary', async () => {
+      const now = 1_700_000_000_000
+      vi.setSystemTime(now)
+
+      mockStat
+        .mockResolvedValueOnce(makeStatResult(now - MTIME_THRESHOLD_MS))
         .mockRejectedValueOnce(Object.assign(new Error('ENOENT'), { code: 'ENOENT' }))
 
       const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
 
-      expect(result).toBe(false)
+      expect(result).toBe(true)
     })
 
-    it('returns false when lock dir exists but jsonl stat throws permission error', async () => {
-      vi.setSystemTime(1_700_000_000_000)
-
-      mockStat
-        .mockResolvedValueOnce(makeStatResult(0, true))
-        .mockRejectedValueOnce(Object.assign(new Error('EACCES'), { code: 'EACCES' }))
-
-      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
-
-      expect(result).toBe(false)
-    })
-
-    it('returns false when lock dir exists but jsonl stat throws generic error', async () => {
-      vi.setSystemTime(1_700_000_000_000)
-
-      mockStat
-        .mockResolvedValueOnce(makeStatResult(0, true))
-        .mockRejectedValueOnce(new Error('Unexpected error'))
-
-      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
-
-      expect(result).toBe(false)
-    })
-  })
-
-  describe('path construction', () => {
-    it('constructs the correct lock dir path', async () => {
-      vi.setSystemTime(1_700_000_000_000)
-
-      mockStat.mockRejectedValue(new Error('ENOENT'))
-
-      await isSessionActive('my-project-dir', 'my-session-id')
-
-      expect(mockStat).toHaveBeenCalledWith(path.join('/fake/projects', 'my-project-dir', 'my-session-id'))
-    })
-
-    it('constructs the correct jsonl path when lock dir exists', async () => {
+    it('returns false when lock path is a file not a directory', async () => {
       const now = 1_700_000_000_000
       vi.setSystemTime(now)
 
       mockStat
-        .mockResolvedValueOnce(makeStatResult(now - 1_000, true)) // lock dir
-        .mockResolvedValueOnce(makeStatResult(now - 1_000)) // jsonl
+        .mockResolvedValueOnce(makeStatResult(now - 60_000))        // jsonl recent
+        .mockResolvedValueOnce(makeStatResult(now - 60_000, false)) // exists but not a dir
+
+      const result = await isSessionActive(PROJECT_DIR, SESSION_ID)
+
+      // Falls through to mtime check: 60s < 5 min → true
+      expect(result).toBe(true)
+    })
+  })
+
+  describe('path construction', () => {
+    it('constructs the correct jsonl and lock dir paths', async () => {
+      const now = 1_700_000_000_000
+      vi.setSystemTime(now)
+
+      mockStat
+        .mockResolvedValueOnce(makeStatResult(now - 1_000))
+        .mockResolvedValueOnce(makeStatResult(now - 1_000, true))
 
       await isSessionActive('my-project-dir', 'my-session-id')
 
       expect(mockStat).toHaveBeenCalledWith(path.join('/fake/projects', 'my-project-dir', 'my-session-id.jsonl'))
+      expect(mockStat).toHaveBeenCalledWith(path.join('/fake/projects', 'my-project-dir', 'my-session-id'))
     })
   })
 })

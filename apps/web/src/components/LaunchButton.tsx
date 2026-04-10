@@ -4,11 +4,21 @@ interface LaunchButtonProps {
   sessionId: string
   cwd?: string
   size?: 'sm' | 'md'
+  isActive?: boolean
 }
 
-export function LaunchButton({ sessionId, cwd, size = 'sm' }: LaunchButtonProps) {
+export function LaunchButton({ sessionId, cwd, size = 'sm', isActive }: LaunchButtonProps) {
   const [status, setStatus] = useState<'idle' | 'launched' | 'error'>('idle')
   const padding = size === 'md' ? 'px-3 py-1' : 'px-2 py-0.5'
+
+  if (isActive) {
+    return (
+      <span className={`shrink-0 border border-emerald-400/30 bg-emerald-900/15 ${padding} text-xs font-medium text-emerald-400/60`}>
+        active
+      </span>
+    )
+  }
+
   return (
     <button
       type="button"
@@ -29,7 +39,7 @@ export function LaunchButton({ sessionId, cwd, size = 'sm' }: LaunchButtonProps)
           setTimeout(() => setStatus('idle'), 2000)
         }
       }}
-      className={`shrink-0 rounded bg-emerald-900/50 ${padding} text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-800/60 hover:text-emerald-300`}
+      className={`shrink-0 border border-emerald-400/30 bg-emerald-900/15 ${padding} text-xs font-medium text-emerald-300 transition-colors hover:border-emerald-400/50 hover:bg-emerald-900/25`}
     >
       {status === 'launched' ? 'Launched!' : status === 'error' ? 'Failed' : 'Launch'}
     </button>

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import type { SessionSummary } from '@/lib/parsers/types'
 import type { Metadata } from '@/features/metadata/metadata.types'
-import { usePinProject, useHideProject } from '@/features/metadata/useMetadataMutations'
+import { useHideProject, usePinProject } from '@/features/metadata/useMetadataMutations'
 import { SessionCard } from './SessionCard'
 
 interface SessionListGroupedProps {
@@ -13,47 +13,48 @@ function ProjectHeader({
   projectName,
   projectPath,
   sessionCount,
-  isExpanded,
   isPinned,
+  isExpanded,
   onToggle,
 }: {
   projectName: string
   projectPath: string
   sessionCount: number
-  isExpanded: boolean
   isPinned: boolean
+  isExpanded: boolean
   onToggle: () => void
 }) {
-  const pinMutation = usePinProject()
   const hideMutation = useHideProject()
+  const pinMutation = usePinProject()
 
   return (
     <div className="flex items-center justify-between rounded-lg border border-gray-800 bg-gray-900/80 px-4 py-2.5">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex items-center gap-2 text-sm font-semibold text-gray-200 hover:text-gray-100"
-      >
-        <span className="text-gray-500 text-xs">{isExpanded ? '\u25BC' : '\u25B6'}</span>
-        <span className="text-gray-400">📁</span>
-        {projectName}
-        <span className="text-xs font-normal text-gray-500">
-          {sessionCount} on page
-        </span>
-      </button>
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           title={isPinned ? 'Unstar project' : 'Star project'}
           onClick={() => pinMutation.mutate({ projectPath, pinned: !isPinned })}
-          className={`rounded px-1.5 py-0.5 text-xs transition-colors ${
+          className={`shrink-0 rounded px-1.5 py-0.5 text-xs transition-colors ${
             isPinned
               ? 'bg-amber-900/50 text-amber-400 hover:bg-amber-800/60'
-              : 'text-gray-500 hover:text-amber-400'
+              : 'opacity-40 hover:opacity-100 text-gray-500 hover:text-amber-400'
           }`}
         >
           {isPinned ? '\u2605' : '\u2606'}
         </button>
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex items-center gap-2 text-sm font-semibold text-gray-200 hover:text-gray-100"
+        >
+          <span className="text-gray-500 text-xs">{isExpanded ? '\u25BC' : '\u25B6'}</span>
+          {projectName}
+        <span className="text-xs font-normal text-gray-500">
+          {sessionCount} on page
+        </span>
+        </button>
+      </div>
+      <div className="flex items-center gap-1">
         <button
           type="button"
           title="Hide project"
@@ -112,7 +113,6 @@ export function SessionListGrouped({ sessions, metadata }: SessionListGroupedPro
   return (
     <div className="space-y-3">
       {grouped.map((group) => {
-        const isPinned = projectMeta[group.projectPath]?.pinned ?? false
         const isExpanded = !collapsed.has(group.projectPath)
         return (
           <div key={group.projectPath}>
@@ -120,8 +120,8 @@ export function SessionListGrouped({ sessions, metadata }: SessionListGroupedPro
               projectName={group.projectName}
               projectPath={group.projectPath}
               sessionCount={group.sessions.length}
+              isPinned={projectMeta[group.projectPath]?.pinned ?? false}
               isExpanded={isExpanded}
-              isPinned={isPinned}
               onToggle={() => toggleProject(group.projectPath)}
             />
             {isExpanded && (

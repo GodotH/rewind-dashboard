@@ -18,10 +18,13 @@ describe('paginateAndFilterSessions', () => {
     userMessageCount: 5,
     assistantMessageCount: 5,
     isActive: false,
+    sessionState: 'inactive' as const,
     model: 'claude-opus-4-6',
     version: '1.0.0',
     fileSizeBytes: 1024,
+    totalTokens: 0,
     firstUserMessage: null,
+    claudeName: null,
     ...overrides,
   })
 
@@ -38,7 +41,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: 'myproject',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(1)
@@ -58,7 +61,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: 'FEATURE',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(2)
@@ -77,7 +80,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: 'ABC',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(1)
@@ -96,7 +99,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: 'WEB',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(1)
@@ -114,7 +117,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: 'main',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(1)
@@ -133,7 +136,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(3)
@@ -154,7 +157,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'active',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(2)
@@ -174,7 +177,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'completed',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(2)
@@ -194,7 +197,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(3)
@@ -217,6 +220,7 @@ describe('paginateAndFilterSessions', () => {
         status: 'all',
         project: 'project-a',
         sort: 'latest' as const,
+        starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(1)
@@ -235,7 +239,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(2)
@@ -270,6 +274,7 @@ describe('paginateAndFilterSessions', () => {
         status: 'active',
         project: 'web-app',
         sort: 'latest' as const,
+        starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(1)
@@ -290,7 +295,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(page1.sessions).toHaveLength(10)
@@ -305,7 +310,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(page2.sessions).toHaveLength(10)
@@ -318,7 +323,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(page3.sessions).toHaveLength(5)
@@ -348,7 +353,7 @@ describe('paginateAndFilterSessions', () => {
           pageSize,
           search: '',
           status: 'all',
-          project: '', sort: 'latest' as const,
+          project: '', sort: 'latest' as const, starFirst: true,
         })
 
         expect(result.totalPages).toBe(expected)
@@ -366,7 +371,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(beyondResult.page).toBe(3) // Last page
@@ -379,7 +384,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(negativeResult.page).toBe(1)
@@ -396,7 +401,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(5)
@@ -414,7 +419,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 5,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(page1.sessions).toHaveLength(5)
@@ -428,7 +433,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 5,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(page2.sessions).toHaveLength(5)
@@ -440,7 +445,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 5,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(page3.sessions).toHaveLength(2)
@@ -456,7 +461,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(0)
@@ -471,7 +476,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: 'nonexistent',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(0)
@@ -490,7 +495,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'active',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.sessions).toHaveLength(0)
@@ -513,7 +518,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.projects).toEqual(['project-a', 'project-b', 'project-c'])
@@ -531,7 +536,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'active', // Filters to only project-a
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       // Projects list should still include all projects
@@ -547,7 +552,7 @@ describe('paginateAndFilterSessions', () => {
         pageSize: 10,
         search: '',
         status: 'all',
-        project: '', sort: 'latest' as const,
+        project: '', sort: 'latest' as const, starFirst: true,
       })
 
       expect(result.projects).toEqual([])

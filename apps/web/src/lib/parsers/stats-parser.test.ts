@@ -243,10 +243,13 @@ describe('parseStats', () => {
         userMessageCount: 3,
         assistantMessageCount: 2,
         isActive: false,
+        sessionState: 'inactive' as const,
         model: 'claude-opus-4-6',
         version: '1.0.0',
+        totalTokens: 0,
         fileSizeBytes: 512,
     firstUserMessage: null,
+    claudeName: null,
         filePath: '/proj/new-session.jsonl',
       }
 
@@ -355,7 +358,10 @@ describe('hour bucketing (via computeStatsFromSessions)', () => {
       model: null,
       version: null,
       fileSizeBytes: 256,
+    totalTokens: 0,
     firstUserMessage: null,
+    claudeName: null,
+    sessionState: 'inactive' as const,
       filePath: '/proj/hour-test.jsonl',
     }
 
@@ -395,7 +401,10 @@ describe('hour bucketing (via computeStatsFromSessions)', () => {
       model: null,
       version: null,
       fileSizeBytes: 0,
+    totalTokens: 0,
     firstUserMessage: null,
+    claudeName: null,
+    sessionState: 'inactive' as const,
       filePath: '/proj/no-time.jsonl',
     }
 

@@ -191,35 +191,34 @@ describe('formatRelativeTime', () => {
     vi.useRealTimers()
   })
 
-  it('returns "less than a minute ago" for timestamps under 30 seconds back', () => {
-    // date-fns formatDistanceToNow: < 30s → "less than a minute ago"
+  it('returns "just now" for timestamps under 1 minute back', () => {
     const recent = new Date(FIXED_NOW.getTime() - 10_000).toISOString()
-    expect(formatRelativeTime(recent)).toBe('less than a minute ago')
+    expect(formatRelativeTime(recent)).toBe('just now')
   })
 
-  it('returns "1 minute ago" for timestamps around 30–45 seconds back', () => {
+  it('returns "just now" for timestamps around 30 seconds back', () => {
     const recent = new Date(FIXED_NOW.getTime() - 30_000).toISOString()
-    expect(formatRelativeTime(recent)).toBe('1 minute ago')
+    expect(formatRelativeTime(recent)).toBe('just now')
   })
 
-  it('returns minutes ago for timestamps a few minutes back', () => {
+  it('returns compact minutes for timestamps a few minutes back', () => {
     const fiveMinAgo = new Date(FIXED_NOW.getTime() - 5 * 60_000).toISOString()
-    expect(formatRelativeTime(fiveMinAgo)).toBe('5 minutes ago')
+    expect(formatRelativeTime(fiveMinAgo)).toBe('5m ago')
   })
 
-  it('returns about an hour ago for timestamps ~60 minutes back', () => {
+  it('returns compact hours for timestamps ~60 minutes back', () => {
     const oneHourAgo = new Date(FIXED_NOW.getTime() - 60 * 60_000).toISOString()
-    expect(formatRelativeTime(oneHourAgo)).toBe('about 1 hour ago')
+    expect(formatRelativeTime(oneHourAgo)).toBe('1h ago')
   })
 
-  it('returns about N hours ago for timestamps several hours back', () => {
+  it('returns compact hours for timestamps several hours back', () => {
     const threeHoursAgo = new Date(FIXED_NOW.getTime() - 3 * 60 * 60_000).toISOString()
-    expect(formatRelativeTime(threeHoursAgo)).toBe('about 3 hours ago')
+    expect(formatRelativeTime(threeHoursAgo)).toBe('3h ago')
   })
 
-  it('returns N days ago for timestamps days back', () => {
+  it('returns compact days+hours for timestamps days back', () => {
     const twoDaysAgo = new Date(FIXED_NOW.getTime() - 2 * 24 * 60 * 60_000).toISOString()
-    expect(formatRelativeTime(twoDaysAgo)).toBe('2 days ago')
+    expect(formatRelativeTime(twoDaysAgo)).toBe('2d ago')
   })
 })
 

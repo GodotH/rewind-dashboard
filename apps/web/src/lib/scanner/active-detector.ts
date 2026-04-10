@@ -2,12 +2,17 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { getProjectsDir } from '../utils/claude-path'
 
-const ACTIVE_THRESHOLD_MS = 3_600_000 // 1 hour — idle sessions don't write to JSONL frequently
+// With lock dir: covers long Claude generations + user think time between turns.
+// Trade-off: orphaned lock dirs show as active for up to 15 min.
+const LOCK_THRESHOLD_MS = 900_000   // 15 minutes
+
+// Without lock dir: only mtime signals activity (lock dir may not exist yet or at all)
+const MTIME_THRESHOLD_MS = 120_000  // 2 minutes — tight window, avoids stale ghosts
 
 /**
  * Check if a session is active by examining:
- * 1. Existence of a lock directory (primary signal — created when Claude Code starts)
- * 2. mtime of the JSONL file (within last 1 hour — filters orphaned lock dirs)
+ * 1. Lock directory exists + mtime < 15 min (session open, may be mid-generation or idle)
+ * 2. No lock dir but mtime < 2 min (lock dir may be delayed or absent)
  */
 export async function isSessionActive(
   projectDirName: string,
@@ -17,14 +22,15 @@ export async function isSessionActive(
   const jsonlPath = path.join(projectsDir, projectDirName, `${sessionId}.jsonl`)
   const lockDirPath = path.join(projectsDir, projectDirName, sessionId)
 
-  // Lock directory must exist (primary signal)
-  const lockStat = await fs.promises.stat(lockDirPath).catch(() => null)
-  if (!lockStat?.isDirectory()) return false
-
-  // JSONL mtime must be recent enough to exclude orphaned locks
   const stat = await fs.promises.stat(jsonlPath).catch(() => null)
   if (!stat) return false
 
   const age = Date.now() - stat.mtimeMs
-  return age <= ACTIVE_THRESHOLD_MS
+
+  // Lock directory exists — trust it with wider window (user may be reading)
+  const lockStat = await fs.promises.stat(lockDirPath).catch(() => null)
+  if (lockStat?.isDirectory()) return age <= LOCK_THRESHOLD_MS
+
+  // No lock dir — only recent JSONL writes count
+  return age <= MTIME_THRESHOLD_MS
 }

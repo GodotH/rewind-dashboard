@@ -27,10 +27,13 @@ describe('useIsSessionActive', () => {
     userMessageCount: 5,
     assistantMessageCount: 5,
     isActive: true,
+    sessionState: 'working' as const,
     model: 'claude-opus-4-6',
     version: '1.0.0',
     fileSizeBytes: 1024,
+    totalTokens: 0,
     firstUserMessage: null,
+    claudeName: null,
   })
 
   beforeEach(() => {

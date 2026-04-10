@@ -27,11 +27,68 @@ export function getHistoryPath(): string {
 }
 
 /**
+ * Common intermediate directory names that appear between the home directory
+ * and a project directory. Used as split points when decoding lossy Unix paths.
+ */
+const KNOWN_DIRS = new Set([
+  'Documents', 'GitHub', 'Desktop', 'Downloads',
+  'projects', 'repos', 'code', 'work', 'src',
+  'Sites', 'Applications', 'Library',
+  'Workspace', 'workspace', 'go', 'git', 'opt',
+])
+
+/**
+ * Best-effort decode of a lossy-encoded Unix path.
+ * Strategy: match homedir prefix greedily, then split on known directory names,
+ * preserving hyphens within unrecognised segments (which are likely literal).
+ * Assumes the dashboard runs under the same user whose ~/.claude is being scanned.
+ */
+function decodeUnixDirName(dirName: string, homedir?: string): string {
+  // Strip leading dash and split on dashes to get raw segments
+  const raw = dirName.startsWith('-') ? dirName.slice(1) : dirName
+  const segments = raw.split('-')
+  if (segments.length === 0) return `/${raw}`
+
+  const home = homedir ?? os.homedir()
+  const homeSegments = home.split('/').filter(Boolean) // e.g. ['Users','alice']
+  const result: string[] = []
+  let i = 0
+
+  // 1. Greedily match home directory prefix
+  for (const hs of homeSegments) {
+    if (i < segments.length && segments[i] === hs) {
+      result.push(segments[i])
+      i++
+    } else {
+      break
+    }
+  }
+
+  // 2. Consume remaining segments: split on known dirs, join the rest with '-'
+  while (i < segments.length) {
+    if (KNOWN_DIRS.has(segments[i])) {
+      result.push(segments[i])
+      i++
+    } else {
+      // Everything from here to the next known-dir (or end) is one hyphenated name
+      const parts: string[] = []
+      while (i < segments.length && !KNOWN_DIRS.has(segments[i])) {
+        parts.push(segments[i])
+        i++
+      }
+      result.push(parts.join('-'))
+    }
+  }
+
+  return '/' + result.join('/')
+}
+
+/**
  * Decode a project directory name back to a filesystem path.
  * ~/.claude/projects stores dirs like "-Users-username-Documents-GitHub-foo"
  * which maps to "/Users/username/Documents/GitHub/foo"
  */
-export function decodeProjectDirName(dirName: string): string {
+export function decodeProjectDirName(dirName: string, homedir?: string): string {
   // Claude Code's encoding is lossy: \, /, :, _, and literal - all become -
   // When -- exists, it reliably marks a path separator or special char boundary,
   // so single - can be kept as a literal hyphen (preserves names like fiscal-26).
@@ -54,8 +111,9 @@ export function decodeProjectDirName(dirName: string): string {
     return dirName.replace(/--/g, '/').replace(/-/g, '-')
   }
 
-  // No double-dash: plain Unix path, every - is a path separator
-  return dirName.replace(/^-/, '/').replace(/-/g, '/')
+  // No double-dash: Unix path — but the encoding is lossy (/ and literal - both become -).
+  // Use os.homedir() to identify the known prefix, then preserve hyphens in the remainder.
+  return decodeUnixDirName(dirName, homedir)
 }
 
 /**

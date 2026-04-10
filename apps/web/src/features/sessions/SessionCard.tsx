@@ -121,7 +121,7 @@ interface SessionCardProps {
 }
 
 export function SessionCard({ session, metadata, projectMeta }: SessionCardProps) {
-  const { privacyMode, anonymizePath, anonymizeProjectName, anonymizeBranch } = usePrivacy()
+  const { privacyMode, anonymizePath, anonymizeProjectName } = usePrivacy()
   const navigate = useNavigate()
   const [isRenaming, setIsRenaming] = useState(false)
 
@@ -129,7 +129,6 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
   const customName = metadata?.customName
   const displayName = projectMeta?.customName || (privacyMode ? anonymizeProjectName(session.projectName) : session.projectName)
   const displayCwd = session.cwd ? anonymizePath(session.cwd, session.projectName) : null
-  const displayBranch = session.branch ? anonymizeBranch(session.branch) : null
   const titleText = customName || session.claudeName || session.firstUserMessage || displayName
 
   return (

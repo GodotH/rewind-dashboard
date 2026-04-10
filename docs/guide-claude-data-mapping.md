@@ -20,11 +20,19 @@ How the dashboard reads and extracts data from `~/.claude`. Every file is **read
 
 ### Path Encoding
 
-Project directories encode the full path by replacing `/` with `-`:
+Claude Code encodes project paths by replacing `/`, `-`, `\`, `:`, `_` all with `-`. This encoding is **lossy** — literal hyphens in folder names are indistinguishable from path separators.
 
+**Windows** (paths always contain `--` from drive letter `C:` → `C--`):
 ```
-/Users/foo/Documents/myproject  →  -Users-foo-Documents-myproject
+C:\Users\godot\_work\fiscal-26  →  C--Users-godot--work-fiscal-26
 ```
+`--` marks path separators; single `-` is a literal hyphen. Decoding is reliable.
+
+**Unix/macOS** (no `--`, all dashes are ambiguous):
+```
+/Users/alice/my-project  →  -Users-alice-my-project
+```
+Decoded by heuristic: match `os.homedir()` prefix, split on known directory names (`Documents`, `GitHub`, `projects`, etc.), preserve hyphens in remaining segments. Best-effort — some edge cases will produce slightly wrong paths but usable project names.
 
 Decoded by `lib/utils/claude-path.ts` → `decodeProjectDirName()`.
 

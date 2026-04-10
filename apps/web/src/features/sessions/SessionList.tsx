@@ -49,7 +49,7 @@ export function SessionList() {
 
   const { data: activeSessions = [] } = useQuery(activeSessionsQuery)
   const hasActive = activeSessions.length > 0
-  const { data: paginatedData, isLoading, isFetching } = useQuery(
+  const { data: paginatedData, isLoading } = useQuery(
     paginatedSessionListQuery({ page, pageSize, search, status, project, sort, starFirst, hasActive }),
   )
   const { data: metadata } = useQuery(metadataQuery)

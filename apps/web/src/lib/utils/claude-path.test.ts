@@ -91,34 +91,59 @@ describe('claude-path', () => {
 
   describe('decodeProjectDirName', () => {
     // --- Unix paths (no double-dash) ---
+    // These require mocking os.homedir() since the decoder uses it for prefix matching.
 
-    it('decodes leading dash to slash (Unix)', () => {
-      expect(decodeProjectDirName('-Users-username-project')).toBe('/Users/username/project')
+    it('decodes macOS path with hyphenated project name', () => {
+      expect(decodeProjectDirName('-Users-alice-my-project', '/Users/alice')).toBe('/Users/alice/my-project')
     })
 
-    it('decodes a typical encoded Unix project directory name', () => {
-      expect(decodeProjectDirName('-Users-alice-Documents-GitHub-myproject')).toBe(
-        '/Users/alice/Documents/GitHub/myproject'
+    it('decodes macOS path through common dirs', () => {
+      expect(decodeProjectDirName('-Users-alice-Documents-GitHub-my-app', '/Users/alice')).toBe(
+        '/Users/alice/Documents/GitHub/my-app'
+      )
+    })
+
+    it('decodes Linux path with known intermediate dir', () => {
+      expect(decodeProjectDirName('-home-user-projects-fiscal-26', '/home/user')).toBe(
+        '/home/user/projects/fiscal-26'
+      )
+    })
+
+    it('decodes simple macOS path (no hyphens to preserve)', () => {
+      expect(decodeProjectDirName('-Users-alice-project', '/Users/alice')).toBe('/Users/alice/project')
+    })
+
+    it('preserves hyphens in deep path with unknown intermediate dirs', () => {
+      // "work" is known, but "clients" is not — so "clients-my-cool-project" stays joined
+      expect(decodeProjectDirName('-Users-alice-work-clients-my-cool-project', '/Users/alice')).toBe(
+        '/Users/alice/work/clients-my-cool-project'
       )
     })
 
     it('handles a single segment path (no intermediate dashes)', () => {
-      expect(decodeProjectDirName('-project')).toBe('/project')
-    })
-
-    it('converts all dashes to slashes for pure Unix paths', () => {
-      const result = decodeProjectDirName('-a-b-c-d')
-      expect(result).toBe('/a/b/c/d')
+      expect(decodeProjectDirName('-project', '/Users/alice')).toBe('/project')
     })
 
     it('handles a path with no dashes (returns string unchanged)', () => {
-      const result = decodeProjectDirName('nodash')
-      expect(result).toBe('nodash')
+      const result = decodeProjectDirName('nodash', '/Users/alice')
+      expect(result).toBe('/nodash')
     })
 
-    it('handles deep nested Unix paths', () => {
-      expect(decodeProjectDirName('-home-user-work-clients-acme-frontend')).toBe(
-        '/home/user/work/clients/acme/frontend'
+    it('handles deep nested Linux paths with known dirs', () => {
+      expect(decodeProjectDirName('-home-user-work-clients-acme-frontend', '/home/user')).toBe(
+        '/home/user/work/clients-acme-frontend'
+      )
+    })
+
+    it('handles path where homedir partially matches', () => {
+      // "Users" matches homedir prefix but "alice" != "bob", so match stops.
+      // Remaining segments "alice-my-project" are joined (none are known dirs).
+      expect(decodeProjectDirName('-Users-alice-my-project', '/Users/bob')).toBe('/Users/alice-my-project')
+    })
+
+    it('splits on multiple known dirs after homedir', () => {
+      expect(decodeProjectDirName('-Users-alice-Documents-GitHub-my-app', '/Users/alice')).toBe(
+        '/Users/alice/Documents/GitHub/my-app'
       )
     })
 

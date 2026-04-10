@@ -17,15 +17,6 @@ function BrailleSpinner({ offset }: { offset: number }) {
   return <span>{SPINNER_CHARS[frame]}</span>
 }
 
-function SpinnerCluster() {
-  return (
-    <span className="font-mono text-emerald-400 tracking-tight">
-      <BrailleSpinner offset={0} />
-      <BrailleSpinner offset={3} />
-      <BrailleSpinner offset={7} />
-    </span>
-  )
-}
 
 function BlinkingCursor() {
   const [visible, setVisible] = useState(true)

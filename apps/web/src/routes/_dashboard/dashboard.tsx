@@ -149,58 +149,31 @@ function DashboardPage() {
         )}
       </div>
 
-      {/* Quick Stats Row — clickable */}
-      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Link to="/sessions" className="group">
-          <QuickStatCard label="Total Sessions" value={stats ? String(stats.totalSessions) : '--'} accent="text-blue-400" icon={
-            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="4" x2="14" y2="4" /><line x1="2" y1="8" x2="14" y2="8" /><line x1="2" y1="12" x2="14" y2="12" /></svg>
-          } />
-        </Link>
-        <Link to="/sessions" className="group">
-          <QuickStatCard label="Total Messages" value={stats ? stats.totalMessages.toLocaleString() : '--'} accent="text-purple-400" icon={
-            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2a2 2 0 00-2 2v8a2 2 0 002 2h8l4 2v-4a2 2 0 002-2V4a2 2 0 00-2-2H2z" /></svg>
-          } />
-        </Link>
-        <Link to="/sessions" className="group">
-          <QuickStatCard label="This Week" value={String(thisWeekSessions)} sub="sessions" accent="text-emerald-400" icon={
-            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4 0a1 1 0 011 1v1h6V1a1 1 0 112 0v1h1a2 2 0 012 2v10a2 2 0 01-2 2H2a2 2 0 01-2-2V4a2 2 0 012-2h1V1a1 1 0 011-1zm-2 6v8h12V6H2z" /></svg>
-          } />
-        </Link>
-        <Link to="/sessions" search={{ status: 'active' } as never} className="group">
-          <QuickStatCard label="Longest Session" value={stats ? formatDuration(stats.longestSession.duration) : '--'} sub={stats ? `${stats.longestSession.messageCount} messages` : undefined} accent="text-brand-400" icon={
-            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.5" /><line x1="8" y1="3" x2="8" y2="8" stroke="currentColor" strokeWidth="1.5" /><line x1="8" y1="8" x2="11" y2="11" stroke="currentColor" strokeWidth="1.5" /></svg>
-          } />
-        </Link>
-      </div>
-
-      {/* Cost & Token Breakdown */}
-      {periods && (
-        <div className="mt-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-          <h2 className="text-sm font-semibold text-gray-300">Tokens & Cost</h2>
-          <div className="mt-3 grid grid-cols-4 gap-3 text-center">
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-gray-500">Today</p>
-              <p className="mt-1 text-lg font-bold text-gray-100">{formatTokenCount(periods.today.totalTokens)}</p>
-              <p className="text-xs text-gray-500">{periods.today.sessionCount} sessions</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-gray-500">7 Days</p>
-              <p className="mt-1 text-lg font-bold text-gray-100">{formatTokenCount(periods.week.totalTokens)}</p>
-              <p className="text-xs text-gray-500">{periods.week.sessionCount} sessions</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-gray-500">30 Days</p>
-              <p className="mt-1 text-lg font-bold text-gray-100">{formatTokenCount(periods.month.totalTokens)}</p>
-              <p className="text-xs text-gray-500">{periods.month.sessionCount} sessions</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wide text-gray-500">All Time</p>
-              <p className="mt-1 text-lg font-bold text-gray-100">{formatTokenCount(periods.total.totalTokens)}</p>
-              <p className="text-xs text-emerald-400/80">{cost ? `~${formatUSD(cost.totalUSD)}` : ''}</p>
-            </div>
+      {/* Unified Stats Box */}
+      <div className="mt-6 border border-gray-800 bg-gray-900/50 p-4">
+        <div className="grid grid-cols-4 gap-4 md:gap-6">
+          <Link to="/sessions" className="group">
+            <p className="text-[10px] uppercase tracking-wide text-gray-500">Sessions</p>
+            <p className="mt-1 text-xl font-bold text-gray-100 group-hover:text-emerald-400 transition-colors">{stats ? String(stats.totalSessions) : '--'}</p>
+            <p className="text-xs text-gray-500">{thisWeekSessions} this week</p>
+          </Link>
+          <Link to="/sessions" className="group">
+            <p className="text-[10px] uppercase tracking-wide text-gray-500">Messages</p>
+            <p className="mt-1 text-xl font-bold text-gray-100 group-hover:text-emerald-400 transition-colors">{stats ? stats.totalMessages.toLocaleString() : '--'}</p>
+            <p className="text-xs text-gray-500">{stats ? formatDuration(stats.longestSession.duration) : '--'} longest</p>
+          </Link>
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-gray-500">Tokens</p>
+            <p className="mt-1 text-xl font-bold text-emerald-400/80">{periods ? formatTokenCount(periods.total.totalTokens) : '--'}</p>
+            <p className="text-xs text-gray-500">{periods ? formatTokenCount(periods.week.totalTokens) : '--'} 7d</p>
+          </div>
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-gray-500">Cost</p>
+            <p className="mt-1 text-xl font-bold text-gray-100">{cost ? `~${formatUSD(cost.totalUSD)}` : '--'}</p>
+            <p className="text-xs text-gray-500">{periods ? `${periods.today.sessionCount} today` : ''}</p>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Recent Sessions — uses SessionCard like sessions tab */}
       <div className="mt-6">
@@ -251,31 +224,5 @@ function DashboardPage() {
   )
 }
 
-function QuickStatCard({
-  label,
-  value,
-  sub,
-  icon,
-  accent,
-  truncateValue,
-}: {
-  label: string
-  value: string
-  sub?: string
-  icon: React.ReactNode
-  accent: string
-  truncateValue?: boolean
-}) {
-  return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-      <div className="flex items-center gap-2">
-        <span className={accent}>{icon}</span>
-        <p className="text-xs text-gray-400">{label}</p>
-      </div>
-      <p className={`mt-2 text-xl font-bold text-gray-100 ${truncateValue ? 'truncate' : ''}`}>{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-gray-500">{sub}</p>}
-    </div>
-  )
-}
 
 

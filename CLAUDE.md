@@ -67,7 +67,7 @@ npm run build        # Production build (known issue on Node v24 — use dev mod
 npm run typecheck    # TypeScript checking
 npm run test         # Vitest unit tests
 npm run lint         # ESLint (no Prettier — ESLint only)
-npm run e2e          # Playwright E2E (port 3001, fixtures at e2e/fixtures/.claude)
+npm run e2e          # agent-browser E2E smoke (port 3001, fixtures at e2e/fixtures/.claude)
 ```
 
 ## Architecture (brief)

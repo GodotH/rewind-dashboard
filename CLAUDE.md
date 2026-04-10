@@ -63,8 +63,11 @@ TanStack Start (SSR on Vite), TanStack Router (file-based), TanStack React Query
 ```bash
 cd apps/web
 npm run dev          # Dev server on localhost:3000
-npm run build        # Production build
+npm run build        # Production build (known issue on Node v24 — use dev mode)
 npm run typecheck    # TypeScript checking
+npm run test         # Vitest unit tests
+npm run lint         # ESLint (no Prettier — ESLint only)
+npm run e2e          # Playwright E2E (port 3001, fixtures at e2e/fixtures/.claude)
 ```
 
 ## Architecture (brief)
@@ -81,6 +84,8 @@ npm run typecheck    # TypeScript checking
 - Branch naming: `feature/<STORY-ID>-description`
 - Dark theme: `bg-gray-950` body, `border-gray-800` borders — see `uiux` skill for full design system
 - Tailwind v4 (CSS-first config)
+- ESLint only — no Prettier or formatter configured
+- Architecture boundary tests in `src/__tests__/architecture/` enforce cross-slice import rules in CI
 - Quality gates before PR: typecheck, lint, test, build (all must pass)
 - Never push directly to main
 - Do NOT add `Co-Authored-By` trailers to commit messages

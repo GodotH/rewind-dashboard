@@ -27,7 +27,7 @@ describe('claude-path', () => {
       vi.stubEnv('CLAUDE_HOME', '/custom/claude/dir')
       vi.resetModules()
       const { getClaudeDir } = await import('./claude-path')
-      expect(getClaudeDir()).toBe('/custom/claude/dir')
+      expect(getClaudeDir()).toBe(path.resolve('/custom/claude/dir'))
     })
 
     it('resolves relative CLAUDE_HOME to absolute path', async () => {
@@ -36,7 +36,7 @@ describe('claude-path', () => {
       const { getClaudeDir } = await import('./claude-path')
       const result = getClaudeDir()
       expect(path.isAbsolute(result)).toBe(true)
-      expect(result).toContain('relative/claude')
+      expect(result).toContain(path.normalize('relative/claude'))
     })
   })
 
@@ -50,7 +50,7 @@ describe('claude-path', () => {
       vi.stubEnv('CLAUDE_HOME', '/custom/claude')
       vi.resetModules()
       const { getProjectsDir } = await import('./claude-path')
-      expect(getProjectsDir()).toBe('/custom/claude/projects')
+      expect(getProjectsDir()).toBe(path.join(path.resolve('/custom/claude'), 'projects'))
     })
 
     it('returns default projects path when CLAUDE_HOME not set', async () => {
@@ -71,7 +71,7 @@ describe('claude-path', () => {
       vi.stubEnv('CLAUDE_HOME', '/custom/claude')
       vi.resetModules()
       const { getStatsPath } = await import('./claude-path')
-      expect(getStatsPath()).toBe('/custom/claude/stats-cache.json')
+      expect(getStatsPath()).toBe(path.join(path.resolve('/custom/claude'), 'stats-cache.json'))
     })
   })
 
@@ -85,40 +85,65 @@ describe('claude-path', () => {
       vi.stubEnv('CLAUDE_HOME', '/custom/claude')
       vi.resetModules()
       const { getHistoryPath } = await import('./claude-path')
-      expect(getHistoryPath()).toBe('/custom/claude/history.jsonl')
+      expect(getHistoryPath()).toBe(path.join(path.resolve('/custom/claude'), 'history.jsonl'))
     })
   })
 
   describe('decodeProjectDirName', () => {
     // --- Unix paths (no double-dash) ---
+    // These require mocking os.homedir() since the decoder uses it for prefix matching.
 
-    it('decodes leading dash to slash (Unix)', () => {
-      expect(decodeProjectDirName('-Users-username-project')).toBe('/Users/username/project')
+    it('decodes macOS path with hyphenated project name', () => {
+      expect(decodeProjectDirName('-Users-alice-my-project', '/Users/alice')).toBe('/Users/alice/my-project')
     })
 
-    it('decodes a typical encoded Unix project directory name', () => {
-      expect(decodeProjectDirName('-Users-alice-Documents-GitHub-myproject')).toBe(
-        '/Users/alice/Documents/GitHub/myproject'
+    it('decodes macOS path through common dirs', () => {
+      expect(decodeProjectDirName('-Users-alice-Documents-GitHub-my-app', '/Users/alice')).toBe(
+        '/Users/alice/Documents/GitHub/my-app'
+      )
+    })
+
+    it('decodes Linux path with known intermediate dir', () => {
+      expect(decodeProjectDirName('-home-user-projects-fiscal-26', '/home/user')).toBe(
+        '/home/user/projects/fiscal-26'
+      )
+    })
+
+    it('decodes simple macOS path (no hyphens to preserve)', () => {
+      expect(decodeProjectDirName('-Users-alice-project', '/Users/alice')).toBe('/Users/alice/project')
+    })
+
+    it('preserves hyphens in deep path with unknown intermediate dirs', () => {
+      // "work" is known, but "clients" is not — so "clients-my-cool-project" stays joined
+      expect(decodeProjectDirName('-Users-alice-work-clients-my-cool-project', '/Users/alice')).toBe(
+        '/Users/alice/work/clients-my-cool-project'
       )
     })
 
     it('handles a single segment path (no intermediate dashes)', () => {
-      expect(decodeProjectDirName('-project')).toBe('/project')
-    })
-
-    it('converts all dashes to slashes for pure Unix paths', () => {
-      const result = decodeProjectDirName('-a-b-c-d')
-      expect(result).toBe('/a/b/c/d')
+      expect(decodeProjectDirName('-project', '/Users/alice')).toBe('/project')
     })
 
     it('handles a path with no dashes (returns string unchanged)', () => {
-      const result = decodeProjectDirName('nodash')
-      expect(result).toBe('nodash')
+      const result = decodeProjectDirName('nodash', '/Users/alice')
+      expect(result).toBe('/nodash')
     })
 
-    it('handles deep nested Unix paths', () => {
-      expect(decodeProjectDirName('-home-user-work-clients-acme-frontend')).toBe(
-        '/home/user/work/clients/acme/frontend'
+    it('handles deep nested Linux paths with known dirs', () => {
+      expect(decodeProjectDirName('-home-user-work-clients-acme-frontend', '/home/user')).toBe(
+        '/home/user/work/clients-acme-frontend'
+      )
+    })
+
+    it('handles path where homedir partially matches', () => {
+      // "Users" matches homedir prefix but "alice" != "bob", so match stops.
+      // Remaining segments "alice-my-project" are joined (none are known dirs).
+      expect(decodeProjectDirName('-Users-alice-my-project', '/Users/bob')).toBe('/Users/alice-my-project')
+    })
+
+    it('splits on multiple known dirs after homedir', () => {
+      expect(decodeProjectDirName('-Users-alice-Documents-GitHub-my-app', '/Users/alice')).toBe(
+        '/Users/alice/Documents/GitHub/my-app'
       )
     })
 
@@ -166,9 +191,8 @@ describe('claude-path', () => {
       expect(extractProjectName('/project')).toBe('project')
     })
 
-    it('uses parent context for short basenames', () => {
-      // 'c' is in noise set, filtered out. Meaningful: [a,b,d,e]. e<=3, take 3: b/d/e
-      expect(extractProjectName('/a/b/c/d/e')).toBe('b/d/e')
+    it('returns the raw last segment for short basenames', () => {
+      expect(extractProjectName('/a/b/c/d/e')).toBe('e')
     })
 
     it('returns the name portion from a typical project path', () => {
@@ -176,14 +200,45 @@ describe('claude-path', () => {
     })
 
     it('includes parent for numeric basenames', () => {
-      // "alice" filtered as noise (<=3 threshold doesn't apply, but it's >3 so kept)
-      // Actually: Users filtered, alice kept, AGENTS kept, CRM kept, 1 is short → takes 3
-      expect(extractProjectName('/Users/alice/AGENTS/CRM/1')).toBe('AGENTS/CRM/1')
+      expect(extractProjectName('/Users/alice/AGENTS/CRM/1')).toBe('CRM/1')
     })
 
     it('handles root path', () => {
       const result = extractProjectName('/')
       expect(typeof result).toBe('string')
+    })
+
+    // --- Lossy decode noise-prefix stripping ---
+
+    it('strips noise-word prefix from lossy-decoded basename', () => {
+      // "C:\Users\godot\_work\fiscal-26" decodes to "C:/Users-godot/work-fiscal-26"
+      expect(extractProjectName('C:/Users-godot/work-fiscal-26')).toBe('fiscal-26')
+    })
+
+    it('strips CODE noise prefix from OneDrive paths', () => {
+      // "C:\Users\godot\OneDrive\_LIVE\_CODE\rewind-dashboard" → "C:/Users-godot-OneDrive/LIVE/CODE-rewind-dashboard"
+      expect(extractProjectName('C:/Users-godot-OneDrive/LIVE/CODE-rewind-dashboard')).toBe('rewind-dashboard')
+    })
+
+    it('strips CODE noise prefix for other projects', () => {
+      expect(extractProjectName('C:/Users-godot-OneDrive/LIVE/CODE-quickfax')).toBe('quickfax')
+    })
+
+    it('preserves hyphenated names without noise prefix', () => {
+      expect(extractProjectName('/Users/alice/my-cool-project')).toBe('my-cool-project')
+    })
+
+    it('handles purely numeric basename with parent context', () => {
+      expect(extractProjectName('C:/Users-godot/fiscal/26')).toBe('fiscal/26')
+    })
+
+    it('strips work prefix from lossy decode with forms suffix', () => {
+      // "C:\Users\godot\_work\fiscal-26-forms" decodes to "C:/Users-godot/work-fiscal-26-forms"
+      expect(extractProjectName('C:/Users-godot/work-fiscal-26-forms')).toBe('fiscal-26-forms')
+    })
+
+    it('returns full basename when no noise prefix present', () => {
+      expect(extractProjectName('C:/Users-godot-OneDrive/LIVE/AGENTS-agent-hub')).toBe('AGENTS-agent-hub')
     })
   })
 

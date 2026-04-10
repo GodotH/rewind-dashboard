@@ -20,13 +20,16 @@ interface PaginatedSessionParams {
   status: 'all' | 'active' | 'completed'
   project: string
   sort: string
+  starFirst: boolean
 }
 
-export function paginatedSessionListQuery(params: PaginatedSessionParams) {
+export function paginatedSessionListQuery(params: PaginatedSessionParams & { hasActive?: boolean }) {
+  const { hasActive, ...data } = params
   return queryOptions({
-    queryKey: ['sessions', 'paginated', params],
-    queryFn: () => getPaginatedSessions({ data: params }),
+    queryKey: ['sessions', 'paginated', data],
+    queryFn: () => getPaginatedSessions({ data }),
+    staleTime: hasActive ? 5_000 : 30_000,
     placeholderData: keepPreviousData,
-    refetchInterval: 30_000,
+    refetchInterval: hasActive ? 5_000 : 30_000,
   })
 }

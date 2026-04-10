@@ -15,10 +15,15 @@ export interface SessionSummary {
   userMessageCount: number
   assistantMessageCount: number
   isActive: boolean
+  /** working = actively generating, waiting = done, awaiting user input, inactive = no lock */
+  sessionState: 'working' | 'waiting' | 'inactive'
   model: string | null
   version: string | null
   fileSizeBytes: number
+  totalTokens: number
   firstUserMessage: string | null
+  /** Session name set via Claude Code's /rename command */
+  claudeName: string | null
 }
 
 // --- Session detail (full streaming parse) ---

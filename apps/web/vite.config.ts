@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { spawn, execSync } from 'node:child_process'
 import { homedir, tmpdir, platform } from 'node:os'
 import { join } from 'node:path'
-import { readdirSync, existsSync, readFileSync, writeFileSync, unlinkSync, chmodSync, openSync, readSync, closeSync } from 'node:fs'
+import { readdirSync, existsSync, writeFileSync, unlinkSync, chmodSync, openSync, readSync, closeSync } from 'node:fs'
 
 function launchSessionPlugin(): Plugin {
   return {
@@ -23,6 +23,32 @@ function launchSessionPlugin(): Plugin {
         req.on('end', () => {
           try {
             const { sessionId, cwd } = JSON.parse(Buffer.concat(chunks).toString())
+
+            // Validate sessionId is a UUID to prevent command injection
+            const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            if (!sessionId || typeof sessionId !== 'string' || !uuidRe.test(sessionId)) {
+              res.writeHead(400, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: 'Invalid sessionId: must be a valid UUID' }))
+              return
+            }
+
+            // Validate cwd if provided: must be absolute, no traversal, no shell metacharacters
+            if (cwd != null) {
+              if (typeof cwd !== 'string') {
+                res.writeHead(400, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: 'Invalid cwd: must be a string' }))
+                return
+              }
+              const isAbsolute = /^[A-Za-z]:[\\/]/.test(cwd) || cwd.startsWith('/')
+              const hasTraversal = /(^|[\\/])\.\.($|[\\/])/.test(cwd)
+              const shellMeta = /[;&|`$(){}!#*?<>\n\r]/.test(cwd)
+              if (!isAbsolute || hasTraversal || shellMeta) {
+                res.writeHead(400, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: 'Invalid cwd: must be absolute path without traversal or shell metacharacters' }))
+                return
+              }
+            }
+
             const home = homedir()
             const projDir = join(home, '.claude', 'projects')
             let sessionCwd = cwd || home
@@ -47,7 +73,7 @@ function launchSessionPlugin(): Plugin {
                 }
               }
             } catch {}
-            const resumeCmd = `claude --resume ${sessionId} --dangerously-skip-permissions`
+            const resumeCmd = `claude --resume ${sessionId}`
             const isWin = platform() === 'win32'
             let child
             if (isWin) {
@@ -94,10 +120,11 @@ function launchSessionPlugin(): Plugin {
             }
             res.writeHead(200, { 'Content-Type': 'application/json' })
             res.end(JSON.stringify({ ok: true }))
-          } catch (err: any) {
-            console.error('[launch-session] Error:', err?.message || err)
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Bad request'
+            console.error('[launch-session] Error:', message)
             res.writeHead(400)
-            res.end(JSON.stringify({ error: err?.message || 'Bad request' }))
+            res.end(JSON.stringify({ error: message }))
           }
         })
       })

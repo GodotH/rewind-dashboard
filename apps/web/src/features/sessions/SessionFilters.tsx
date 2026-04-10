@@ -11,7 +11,7 @@ interface SessionFiltersProps {
 
 export function SessionFilters({ projects, activeCount, searchRef }: SessionFiltersProps) {
   const navigate = useNavigate()
-  const { search: urlSearch, status, project, sort, view } = Route.useSearch()
+  const { search: urlSearch, status, project, sort, view, pageSize, starFirst } = Route.useSearch()
   const { privacyMode, anonymizeProjectName } = usePrivacy()
 
   const [localSearch, setLocalSearch] = useState(urlSearch)
@@ -27,23 +27,23 @@ export function SessionFilters({ projects, activeCount, searchRef }: SessionFilt
     setLocalSearch(value)
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
     debounceTimerRef.current = setTimeout(() => {
-      navigate({ to: '/sessions', search: { search: value, sort, view, status, project, page: 1, pageSize: 5 } })
+      navigate({ to: '/sessions', search: { search: value, sort, view, status, project, page: 1, pageSize } })
     }, 300)
   }
 
   function handleStatusChange(newStatus: 'all' | 'active' | 'completed') {
     navigate({
       to: '/sessions',
-      search: { search: localSearch, sort, view, status: newStatus, page: 1, pageSize: 5, project: newStatus === 'all' ? '' : project },
+      search: { search: localSearch, sort, view, status: newStatus, page: 1, pageSize, project: newStatus === 'all' ? '' : project },
     })
   }
 
   function handleProjectChange(newProject: string) {
-    navigate({ to: '/sessions', search: { search: localSearch, sort, view, status, project: newProject, page: 1, pageSize: 5 } })
+    navigate({ to: '/sessions', search: { search: localSearch, sort, view, status, project: newProject, page: 1, pageSize } })
   }
 
   function handleSortChange(newSort: string) {
-    navigate({ to: '/sessions', search: { search: localSearch, sort: newSort as typeof sort, view, status, project, page: 1, pageSize: 5 } })
+    navigate({ to: '/sessions', search: { search: localSearch, sort: newSort as typeof sort, view, status, project, page: 1, pageSize } })
   }
 
   function handleViewChange(newView: string) {
@@ -52,7 +52,7 @@ export function SessionFilters({ projects, activeCount, searchRef }: SessionFilt
       search: {
         search: localSearch, sort, status, project, page: 1,
         view: newView as 'flat' | 'grouped',
-        pageSize: newView === 'grouped' ? 25 : 5,
+        pageSize,
       },
     })
   }
@@ -101,6 +101,18 @@ export function SessionFilters({ projects, activeCount, searchRef }: SessionFilt
               )}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => navigate({ to: '/sessions', search: (prev) => ({ ...prev, starFirst: !starFirst }) })}
+            className={`px-3 py-1.5 capitalize transition-colors rounded-lg ${
+              starFirst
+                ? 'bg-amber-900/30 text-amber-400'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+            title={starFirst ? 'Starred pinned to top — click to sort all by recency' : 'Click to pin starred to top'}
+          >
+            {starFirst ? '\u2605' : '\u2606'} Starred
+          </button>
         </div>
 
         {projects.length > 1 && (

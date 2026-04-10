@@ -1,10 +1,29 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { getProjectsDir, extractSessionId } from '../utils/claude-path'
+import { getClaudeDir, getProjectsDir, extractSessionId } from '../utils/claude-path'
 import { scanProjects } from './project-scanner'
 import { isSessionActive } from './active-detector'
 import { parseSummary } from '../parsers/session-parser'
 import type { SessionSummary } from '../parsers/types'
+
+/** Read Claude Code's /rename names from ~/.claude/sessions/*.json */
+function readClaudeSessionNames(): Map<string, string> {
+  const names = new Map<string, string>()
+  const sessionsDir = path.join(getClaudeDir(), 'sessions')
+  try {
+    const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('.json'))
+    for (const file of files) {
+      try {
+        const raw = fs.readFileSync(path.join(sessionsDir, file), 'utf-8')
+        const data = JSON.parse(raw)
+        if (data.sessionId && data.name) {
+          names.set(data.sessionId, data.name)
+        }
+      } catch { /* skip malformed files */ }
+    }
+  } catch { /* sessions dir may not exist */ }
+  return names
+}
 
 /** Extended summary that includes the absolute JSONL file path (server-side only). */
 export interface SessionSummaryWithPath extends SessionSummary {
@@ -12,10 +31,19 @@ export interface SessionSummaryWithPath extends SessionSummary {
 }
 
 // In-memory cache: sessionId -> { mtime, summary }
+// Cache version: bump to invalidate after code changes (e.g. new fields)
+// In-memory mtime cache. Cleared on HMR module reload (new Map instance).
 const summaryCache = new Map<
   string,
   { mtimeMs: number; summary: SessionSummary }
 >()
+
+/** Determine session state from active status and file freshness.
+ * If isSessionActive returned true, the session is working.
+ * "waiting" is reserved for future use with process-level detection. */
+function getSessionState(isActive: boolean, _mtimeMs: number): 'working' | 'waiting' | 'inactive' {
+  return isActive ? 'working' : 'inactive'
+}
 
 /**
  * Internal scanning logic that returns summaries with their file paths.
@@ -23,6 +51,7 @@ const summaryCache = new Map<
  */
 async function scanSessionsInternal(): Promise<SessionSummaryWithPath[]> {
   const projects = await scanProjects()
+  const claudeNames = readClaudeSessionNames()
   const summaries: SessionSummaryWithPath[] = []
 
   for (const project of projects) {
@@ -41,8 +70,11 @@ async function scanSessionsInternal(): Promise<SessionSummaryWithPath[]> {
       const cached = summaryCache.get(sessionId)
       if (cached && cached.mtimeMs === stat.mtimeMs) {
         // Refresh active status even for cached entries
+        // claudeName: prefer session JSON name, fall back to JSONL-parsed name from cache
         const active = await isSessionActive(project.dirName, sessionId)
-        summaries.push({ ...cached.summary, isActive: active, filePath })
+        const claudeName = claudeNames.get(sessionId) ?? cached.summary.claudeName ?? null
+        const sessionState = getSessionState(active, stat.mtimeMs)
+        summaries.push({ ...cached.summary, isActive: active, sessionState, claudeName, filePath })
         continue
       }
 
@@ -58,6 +90,8 @@ async function scanSessionsInternal(): Promise<SessionSummaryWithPath[]> {
       if (summary) {
         const active = await isSessionActive(project.dirName, sessionId)
         summary.isActive = active
+        summary.sessionState = getSessionState(active, stat.mtimeMs)
+        summary.claudeName = claudeNames.get(sessionId) ?? summary.claudeName ?? null
 
         summaryCache.set(sessionId, {
           mtimeMs: stat.mtimeMs,

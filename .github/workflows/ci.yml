@@ -6,12 +6,17 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
   package-policy:
     name: Package Policy
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: ./apps/web
@@ -38,6 +43,7 @@ jobs:
   cross-platform:
     name: Cross-Platform Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -71,6 +77,7 @@ jobs:
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: ./apps/web
@@ -97,6 +104,7 @@ jobs:
   test:
     name: Unit Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ./apps/web
@@ -131,6 +139,7 @@ jobs:
   build:
     name: Production Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: ./apps/web
@@ -157,6 +166,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: ./apps/web
@@ -184,6 +194,7 @@ jobs:
     name: E2E Tests
     needs: [package-policy, cross-platform, typecheck, test, lint]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: ./apps/web
@@ -216,4 +227,4 @@ jobs:
         with:
           name: e2e-screenshots
           path: apps/web/e2e/screenshots/
-          retention-days: 14
+          retention-days: 7

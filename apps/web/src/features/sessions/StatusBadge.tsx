@@ -6,8 +6,9 @@ const SPINNER_CHARS = ['\u280B', '\u2819', '\u2839', '\u2838', '\u283C', '\u2834
 
 function BrailleSpinner({ offset }: { offset: number }) {
   const [frame, setFrame] = useState(offset % SPINNER_CHARS.length)
-  const startRef = useRef(Date.now())
+  const startRef = useRef(0)
   useEffect(() => {
+    startRef.current = Date.now()
     const id = setInterval(() => {
       const elapsed = Date.now() - startRef.current
       setFrame((offset + Math.floor(elapsed / 80)) % SPINNER_CHARS.length)

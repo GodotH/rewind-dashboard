@@ -36,7 +36,7 @@
     "build": "vite build",
     "start": "node ./bin/cli.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --pool=threads --maxWorkers=1",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "e2e": "bash ./e2e/agent-browser-smoke.sh",

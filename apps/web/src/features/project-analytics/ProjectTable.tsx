@@ -34,7 +34,7 @@ export function ProjectTable({ projects, showHidden }: ProjectTableProps) {
   const [renamingPath, setRenamingPath] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
 
-  const projectMeta = metadata?.projects ?? {}
+  const projectMeta = useMemo(() => metadata?.projects ?? {}, [metadata])
 
   const filtered = useMemo(() => {
     if (showHidden) return projects

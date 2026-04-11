@@ -4,8 +4,9 @@
  * e.g. "mcp__plugin_context7_context7__resolve-library-id" → "resolve-library-id"
  */
 export function shortenToolName(name: string): string {
-  // MCP plugin tools: mcp__plugin_{plugin}_{provider}__{action}
-  const mcpMatch = name.match(/^mcp__[^_]+_[^_]+_[^_]+__(.+)$/)
+  // MCP plugin tools use a final "__{action}" separator, but the provider/plugin
+  // segment may itself contain underscores.
+  const mcpMatch = name.match(/^mcp__.+__(.+)$/)
   if (mcpMatch) return mcpMatch[1]
   return name
 }

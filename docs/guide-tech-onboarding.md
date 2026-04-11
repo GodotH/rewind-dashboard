@@ -252,7 +252,7 @@ createServerFn({ method: 'GET' })
 - Test files: `*.test.ts` / `*.test.tsx` co-located with source
 - DOM environment: `happy-dom`
 - Component testing with `@testing-library/react`
-- Run: `cd apps/web && npm run test`
+- Run: `cd apps/web && pnpm run test`
 
 **Key files:**
 - `apps/web/vitest.config.ts` — configuration
@@ -295,7 +295,7 @@ createServerFn({ method: 'GET' })
 - Config: `apps/web/eslint.config.js`
 - Plugins: typescript-eslint, react-hooks, react-refresh
 - Unused vars prefixed with `_` are allowed
-- Run: `cd apps/web && npx eslint .`
+- Run: `cd apps/web && pnpm run lint`
 
 **Learn:**
 - [ESLint flat config](https://eslint.org/docs/latest/use/configure/configuration-files)
@@ -443,13 +443,13 @@ docker compose up                     # Run via Docker Compose
 
 | Command | What it does |
 |---|---|
-| `cd apps/web && npm run dev` | Start dev server on localhost:3000 |
-| `cd apps/web && npm run build` | Production build |
-| `cd apps/web && npm run typecheck` | TypeScript type checking |
-| `cd apps/web && npm run test` | Run unit tests (Vitest) |
-| `cd apps/web && npm run test:ui` | Run tests with interactive UI |
-| `cd apps/web && npx eslint .` | Run linter |
-| `cd apps/web && npm run e2e` | Run E2E smoke tests |
+| `cd apps/web && pnpm run dev` | Start dev server on localhost:3000 |
+| `cd apps/web && pnpm run build` | Production build |
+| `cd apps/web && pnpm run typecheck` | TypeScript type checking |
+| `cd apps/web && pnpm run test` | Run unit tests (Vitest) |
+| `cd apps/web && pnpm run test:ui` | Run tests with interactive UI |
+| `cd apps/web && pnpm run lint` | Run linter |
+| `cd apps/web && pnpm run e2e` | Run E2E smoke tests |
 
 ---
 

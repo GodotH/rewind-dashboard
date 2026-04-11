@@ -5,7 +5,7 @@
  * with arbitrary byte sequences, helping surface crashes, hangs, or
  * unexpected behaviour in the JSON parsing and message-processing paths.
  *
- * Run locally (after `npm install @jazzer.js/core`):
+ * Run locally (after `pnpm add -D @jazzer.js/core`):
  *   npx jazzer fuzz.ts -- -max_total_time=60
  */
 import { FuzzedDataProvider } from '@jazzer.js/core'

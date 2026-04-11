@@ -69,7 +69,7 @@ try {
   await access(join(distDir, 'server', 'server.js'));
 } catch {
   console.error(`\nError: Built files not found at ${distDir}/server/server.js`);
-  console.error('Run "npm run build" first, then try again.\n');
+  console.error('Run "pnpm run build" first, then try again.\n');
   process.exit(1);
 }
 

@@ -62,12 +62,12 @@ TanStack Start (SSR on Vite), TanStack Router (file-based), TanStack React Query
 
 ```bash
 cd apps/web
-npm run dev          # Dev server on localhost:3000
-npm run build        # Production build (known issue on Node v24 — use dev mode)
-npm run typecheck    # TypeScript checking
-npm run test         # Vitest unit tests
-npm run lint         # ESLint (no Prettier — ESLint only)
-npm run e2e          # agent-browser E2E smoke (port 3001, fixtures at e2e/fixtures/.claude)
+pnpm run dev         # Dev server on localhost:3000
+pnpm run build       # Production build (known issue on Node v24 — use dev mode)
+pnpm run typecheck   # TypeScript checking
+pnpm run test        # Vitest unit tests
+pnpm run lint        # ESLint (no Prettier — ESLint only)
+pnpm run e2e         # agent-browser E2E smoke (port 3001, fixtures at e2e/fixtures/.claude)
 ```
 
 ## Architecture (brief)

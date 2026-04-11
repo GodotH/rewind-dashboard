@@ -59,7 +59,7 @@ mkdir -p "$SCREENSHOT_DIR"
 
 cd "$ROOT_DIR"
 if [[ "$SERVER_MODE" == "dev" ]]; then
-  CLAUDE_HOME="$CLAUDE_HOME_FIXTURE" npm run dev -- --host 127.0.0.1 --port "$PORT" >/tmp/rewind-dashboard-e2e.log 2>&1 &
+  CLAUDE_HOME="$CLAUDE_HOME_FIXTURE" pnpm run dev -- --host 127.0.0.1 --port "$PORT" >/tmp/rewind-dashboard-e2e.log 2>&1 &
 else
   CLAUDE_HOME="$CLAUDE_HOME_FIXTURE" node ./bin/cli.mjs --host 127.0.0.1 --port "$PORT" >/tmp/rewind-dashboard-e2e.log 2>&1 &
 fi

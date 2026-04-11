@@ -2,7 +2,10 @@
 # This file defines who will be automatically requested for review when PRs are opened.
 
 # Default owner for everything
-* @dlupiak
+* @Ogilthorp3
 
-# CI/CD workflows need extra review
-.github/ @dlupiak
+# Dependency and CI policy changes should never be unowned.
+.github/ @Ogilthorp3
+/apps/web/pnpm-lock.yaml @Ogilthorp3
+/apps/web/pnpm-workspace.yaml @Ogilthorp3
+/apps/web/package.json @Ogilthorp3

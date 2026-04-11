@@ -37,6 +37,7 @@
     "dev": "vite",
     "build": "vite build",
     "start": "node ./bin/cli.mjs",
+    "verify:pm": "node ./scripts/verify-package-manager.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --pool=threads --maxWorkers=1",
     "test:watch": "vitest",

@@ -9,6 +9,65 @@ on:
 permissions: {}
 
 jobs:
+  package-policy:
+    name: Package Policy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/web
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: ./apps/web/pnpm-lock.yaml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.2.0
+
+      - name: Verify package manager policy
+        run: pnpm run verify:pm
+
+      - name: Verify lockfile install
+        run: pnpm install --frozen-lockfile
+
+  cross-platform:
+    name: Cross-Platform Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        working-directory: ./apps/web
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: ./apps/web/pnpm-lock.yaml
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.2.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run type check
+        run: pnpm run typecheck
+
+      - name: Build project
+        run: pnpm run build
+
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
@@ -123,7 +182,7 @@ jobs:
 
   e2e:
     name: E2E Tests
-    needs: [typecheck, test, lint]
+    needs: [package-policy, cross-platform, typecheck, test, lint]
     runs-on: ubuntu-latest
     defaults:
       run:

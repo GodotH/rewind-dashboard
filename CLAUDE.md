@@ -56,6 +56,12 @@ When a user asks to "implement X" or "add feature Y" without using a skill, you 
 
 Read-only, local-only observability dashboard for Claude Code sessions. Scans `~/.claude` to display session details, tool usage, tokens, and stats. **Never modify files in `~/.claude`.** Localhost only.
 
+## Runtime
+
+- **Port**: 3030 (Windows auto-start scripts), 3000 for local Vite dev
+- **Auto-start**: Windows scheduled task `StartRewindDashboard` runs at logon
+- **Startup scripts**: `C:\Users\godot\_work\start-rewind.cmd`, `C:\Users\godot\_work\start-rewind-silent.vbs`
+
 ## Tech Stack & Commands
 
 TanStack Start (SSR on Vite), TanStack Router (file-based), TanStack React Query, Tailwind CSS v4, Recharts, Zod.
@@ -63,7 +69,7 @@ TanStack Start (SSR on Vite), TanStack Router (file-based), TanStack React Query
 ```bash
 cd apps/web
 pnpm run dev         # Dev server on localhost:3000
-pnpm run build       # Production build (known issue on Node v24 — use dev mode)
+pnpm run build       # Production build
 pnpm run typecheck   # TypeScript checking
 pnpm run test        # Vitest unit tests
 pnpm run lint        # ESLint (no Prettier — ESLint only)
@@ -82,7 +88,7 @@ pnpm run e2e         # agent-browser E2E smoke (port 3001, fixtures at e2e/fixtu
 - Vertical Slice Architecture — organize by feature, not by layer
 - Import alias: `@/` → `apps/web/src/`
 - Branch naming: `feature/<STORY-ID>-description`
-- Dark theme: `bg-gray-950` body, `border-gray-800` borders — see `uiux` skill for full design system
+- Dark theme: `bg-gray-950` body, `border-gray-800` borders
 - Tailwind v4 (CSS-first config)
 - ESLint only — no Prettier or formatter configured
 - Architecture boundary tests in `src/__tests__/architecture/` enforce cross-slice import rules in CI

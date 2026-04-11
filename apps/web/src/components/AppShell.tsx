@@ -128,13 +128,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative flex min-h-screen">
       <MatrixBackground active={hasWorkingSessions} />
-      {/* Sidebar */}
       <aside className="relative z-10 flex w-56 shrink-0 flex-col border-r border-gray-800 bg-gray-950/80 backdrop-blur-sm">
         <div className="flex h-14 items-center border-b border-gray-800 px-4">
           <Link to="/dashboard" className="group flex items-baseline gap-1.5 tracking-tight">
             <span className="text-lg font-black italic text-brand-500 neon-glow-brand transition-all group-hover:text-brand-400">Rewind</span>
             <span className="text-lg font-normal text-gray-400">dashboard</span>
-            <span className="ml-1 text-[11px] text-gray-500">v1.02</span>
+            <span className="ml-1 text-[11px] text-gray-500">v1.03</span>
           </Link>
         </div>
 
@@ -187,7 +186,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Main content */}
       <main className="relative z-10 flex-1 overflow-auto bg-gray-950/85 backdrop-blur-sm">
         <div className="mx-auto max-w-5xl px-6 py-6">{children}</div>
       </main>

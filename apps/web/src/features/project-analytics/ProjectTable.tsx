@@ -171,7 +171,7 @@ export function ProjectTable({ projects, showHidden }: ProjectTableProps) {
                         <span className="text-[10px] text-gray-600 font-mono">{project.projectName}</span>
                       )}
                       {project.activeSessions > 0 && (
-                        <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
+                        <span className="rounded-full bg-matrix/20 px-1.5 py-0.5 text-[10px] font-medium text-matrix">
                           {project.activeSessions} active
                         </span>
                       )}

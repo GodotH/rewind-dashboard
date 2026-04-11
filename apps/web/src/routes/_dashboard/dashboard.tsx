@@ -59,17 +59,17 @@ function DashboardPage() {
 
   const { cost } = useSessionCost(tokensByModel)
 
-  // Time-period breakdowns
   const periods = useMemo(() => {
     if (!stats) return null
+    const currentStats = stats
     const now = new Date()
     const dayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
     function sumPeriod(since: Date) {
-      const days = stats!.dailyActivity.filter((d) => new Date(d.date) >= since)
-      const tokenDays = stats!.dailyModelTokens.filter((d) => new Date(d.date) >= since)
+      const days = currentStats.dailyActivity.filter((d) => new Date(d.date) >= since)
+      const tokenDays = currentStats.dailyModelTokens.filter((d) => new Date(d.date) >= since)
       const sessionCount = days.reduce((s, d) => s + d.sessionCount, 0)
       const toolCalls = days.reduce((s, d) => s + d.toolCallCount, 0)
       let totalTokens = 0
@@ -82,11 +82,11 @@ function DashboardPage() {
     }
 
     const total = {
-      sessionCount: stats.totalSessions,
-      toolCalls: stats.dailyActivity.reduce((s, d) => s + d.toolCallCount, 0),
-      totalTokens: Object.values(stats.modelUsage).reduce((s, m) => s + m.inputTokens + m.outputTokens, 0),
-      inputTokens: Object.values(stats.modelUsage).reduce((s, m) => s + m.inputTokens, 0),
-      outputTokens: Object.values(stats.modelUsage).reduce((s, m) => s + m.outputTokens, 0),
+      sessionCount: currentStats.totalSessions,
+      toolCalls: currentStats.dailyActivity.reduce((s, d) => s + d.toolCallCount, 0),
+      totalTokens: Object.values(currentStats.modelUsage).reduce((s, m) => s + m.inputTokens + m.outputTokens, 0),
+      inputTokens: Object.values(currentStats.modelUsage).reduce((s, m) => s + m.inputTokens, 0),
+      outputTokens: Object.values(currentStats.modelUsage).reduce((s, m) => s + m.outputTokens, 0),
     }
 
     return {
@@ -149,7 +149,6 @@ function DashboardPage() {
         )}
       </div>
 
-      {/* Quick Stats Row — clickable */}
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Link to="/sessions" className="group">
           <QuickStatCard label="Total Sessions" value={stats ? String(stats.totalSessions) : '--'} accent="text-blue-400" icon={
@@ -173,7 +172,6 @@ function DashboardPage() {
         </Link>
       </div>
 
-      {/* Cost & Token Breakdown */}
       {periods && (
         <div className="mt-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
           <h2 className="text-sm font-semibold text-gray-300">Tokens & Cost</h2>
@@ -202,11 +200,10 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* Recent Sessions — uses SessionCard like sessions tab */}
       <div className="mt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-300">Recent Sessions</h2>
-          <Link to="/sessions" className="text-xs font-medium text-brand-400 hover:text-brand-300 transition-colors">
+          <Link to="/sessions" className="text-xs font-medium text-brand-400 transition-colors hover:text-brand-300">
             View all &rarr;
           </Link>
         </div>
@@ -226,7 +223,6 @@ function DashboardPage() {
         )}
       </div>
 
-      {/* Full Charts Section */}
       {stats && (
         <>
           <div className="mt-6">
@@ -267,15 +263,15 @@ function QuickStatCard({
   truncateValue?: boolean
 }) {
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-      <div className="flex items-center gap-2">
-        <span className={accent}>{icon}</span>
-        <p className="text-xs text-gray-400">{label}</p>
+    <div className="h-full rounded-xl border border-gray-800 bg-gray-900/50 p-4 transition-colors hover:border-gray-700 hover:bg-gray-900/70">
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
+          <p className={`mt-2 text-xl font-bold ${accent} ${truncateValue ? 'truncate' : ''}`}>{value}</p>
+          {sub && <p className="mt-1 text-xs text-gray-500">{sub}</p>}
+        </div>
+        <div className={`mt-0.5 ${accent}`}>{icon}</div>
       </div>
-      <p className={`mt-2 text-xl font-bold text-gray-100 ${truncateValue ? 'truncate' : ''}`}>{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-gray-500">{sub}</p>}
     </div>
   )
 }
-
-

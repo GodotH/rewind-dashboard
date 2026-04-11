@@ -13,8 +13,8 @@ const statusConfig: Record<
   },
   completed: {
     label: 'Done',
-    bg: 'bg-emerald-500/20',
-    text: 'text-emerald-400',
+    bg: 'bg-matrix/20',
+    text: 'text-matrix',
   },
   deleted: { label: 'Deleted', bg: 'bg-red-500/20', text: 'text-red-400' },
 }

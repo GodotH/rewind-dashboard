@@ -208,7 +208,7 @@ function SettingsForm({ settings }: { settings: Settings }) {
 
         <div className="flex items-center gap-3">
           {mutation.isSuccess && !isDirty && (
-            <span className="text-xs text-emerald-400">Saved</span>
+            <span className="text-xs text-matrix">Saved</span>
           )}
           {mutation.isError && (
             <span className="text-xs text-red-400">

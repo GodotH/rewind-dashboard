@@ -97,7 +97,7 @@ export function SessionFilters({ projects, activeCount, searchRef }: SessionFilt
             >
               {s}
               {s === 'active' && activeCount > 0 && (
-                <span className="ml-1 text-emerald-400">({activeCount})</span>
+                <span className="ml-1 text-matrix">({activeCount})</span>
               )}
             </button>
           ))}

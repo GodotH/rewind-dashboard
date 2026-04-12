@@ -2,10 +2,13 @@ import { z } from 'zod'
 
 // --- Session summary (derived from first/last N lines of JSONL) ---
 
+export type SessionProvider = 'claude' | 'gemini' | 'codex'
+
 export interface SessionSummary {
   sessionId: string
   projectPath: string
   projectName: string
+  provider?: SessionProvider
   branch: string | null
   cwd: string | null
   startedAt: string
@@ -15,15 +18,13 @@ export interface SessionSummary {
   userMessageCount: number
   assistantMessageCount: number
   isActive: boolean
-  /** working = actively generating, waiting = done, awaiting user input, inactive = no lock */
-  sessionState: 'working' | 'waiting' | 'inactive'
+  sessionState?: 'working' | 'waiting' | 'inactive'
   model: string | null
   version: string | null
   fileSizeBytes: number
-  totalTokens: number
+  totalTokens?: number
   firstUserMessage: string | null
-  /** Session name set via Claude Code's /rename command */
-  claudeName: string | null
+  claudeName?: string | null
 }
 
 // --- Session detail (full streaming parse) ---
@@ -109,6 +110,7 @@ export interface SessionDetail {
   sessionId: string
   projectPath: string
   projectName: string
+  provider?: SessionProvider
   branch: string | null
   cwd: string | null
   turns: Turn[]
@@ -202,7 +204,7 @@ export interface HistoryEntry {
  *              agentId still appears in tool_result text and toolUseResult.
  */
 export interface RawJsonlMessage {
-  type: 'user' | 'assistant' | 'system' | 'progress' | 'file-history-snapshot'
+  type: 'user' | 'assistant' | 'system' | 'progress' | 'file-history-snapshot' | 'session_meta' | 'event_msg' | 'response_item' | 'turn_context'
   uuid?: string
   parentUuid?: string
   sessionId?: string
@@ -232,6 +234,8 @@ export interface RawJsonlMessage {
     }
     stop_reason?: string
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw provider payload varies by version
+  payload?: any
   data?: {
     type?: string
     agentId?: string

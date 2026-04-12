@@ -1,48 +1,31 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { getClaudeDir, getProjectsDir, extractSessionId } from '../utils/claude-path'
+import { extractSessionId } from '../utils/claude-path'
 import { scanProjects } from './project-scanner'
 import { isSessionActive } from './active-detector'
 import { parseSummary } from '../parsers/session-parser'
 import type { SessionSummary } from '../parsers/types'
 
-/** Read Claude Code's /rename names from ~/.claude/sessions/*.json */
-function readClaudeSessionNames(): Map<string, string> {
-  const names = new Map<string, string>()
-  const sessionsDir = path.join(getClaudeDir(), 'sessions')
-  try {
-    const files = fs.readdirSync(sessionsDir).filter((f) => f.endsWith('.json'))
-    for (const file of files) {
-      try {
-        const raw = fs.readFileSync(path.join(sessionsDir, file), 'utf-8')
-        const data = JSON.parse(raw)
-        if (data.sessionId && data.name) {
-          names.set(data.sessionId, data.name)
-        }
-      } catch { /* skip malformed files */ }
-    }
-  } catch { /* sessions dir may not exist */ }
-  return names
-}
-
-/** Extended summary that includes the absolute JSONL file path (server-side only). */
+/** Extended summary that includes the absolute file path (server-side only). */
 export interface SessionSummaryWithPath extends SessionSummary {
   filePath: string
 }
 
 // In-memory cache: sessionId -> { mtime, summary }
-// Cache version: bump to invalidate after code changes (e.g. new fields)
-// In-memory mtime cache. Cleared on HMR module reload (new Map instance).
 const summaryCache = new Map<
   string,
   { mtimeMs: number; summary: SessionSummary }
 >()
 
-/** Determine session state from active status and file freshness.
- * If isSessionActive returned true, the session is working.
- * "waiting" is reserved for future use with process-level detection. */
-function getSessionState(isActive: boolean, _mtimeMs: number): 'working' | 'waiting' | 'inactive' {
-  return isActive ? 'working' : 'inactive'
+function buildCacheKey(provider: string, sessionId: string): string {
+  return `${provider}:${sessionId}`
+}
+
+function extractProviderSessionId(filename: string, provider: string): string {
+  if (provider === 'gemini') {
+    return filename.replace(/\.json$/, '')
+  }
+  return extractSessionId(filename)
 }
 
 /**
@@ -51,15 +34,14 @@ function getSessionState(isActive: boolean, _mtimeMs: number): 'working' | 'wait
  */
 async function scanSessionsInternal(): Promise<SessionSummaryWithPath[]> {
   const projects = await scanProjects()
-  const claudeNames = readClaudeSessionNames()
   const summaries: SessionSummaryWithPath[] = []
 
   for (const project of projects) {
     for (const file of project.sessionFiles) {
-      const sessionId = extractSessionId(file)
+      const provider = project.provider ?? 'claude'
+      const sessionId = extractProviderSessionId(file, provider)
       const filePath = path.join(
-        getProjectsDir(),
-        project.dirName,
+        project.absoluteDir ?? project.dirName,
         file,
       )
 
@@ -67,14 +49,15 @@ async function scanSessionsInternal(): Promise<SessionSummaryWithPath[]> {
       if (!stat) continue
 
       // Check cache
-      const cached = summaryCache.get(sessionId)
+      const cacheKey = buildCacheKey(provider, sessionId)
+      const cached = summaryCache.get(cacheKey)
       if (cached && cached.mtimeMs === stat.mtimeMs) {
         // Refresh active status even for cached entries
-        // claudeName: prefer session JSON name, fall back to JSONL-parsed name from cache
-        const active = await isSessionActive(project.dirName, sessionId)
-        const claudeName = claudeNames.get(sessionId) ?? cached.summary.claudeName ?? null
-        const sessionState = getSessionState(active, stat.mtimeMs)
-        summaries.push({ ...cached.summary, isActive: active, sessionState, claudeName, filePath })
+        // active detection only works for Claude right now
+        const active = provider === 'claude' ? await isSessionActive(project.dirName, sessionId) : false
+        const sessionState = provider === 'claude' ? (active ? 'working' : 'inactive') : 'inactive'
+        const claudeName = provider === 'claude' ? (cached.summary.claudeName ?? null) : null
+        summaries.push({ ...cached.summary, provider, isActive: active, sessionState, claudeName, filePath })
         continue
       }
 
@@ -85,15 +68,17 @@ async function scanSessionsInternal(): Promise<SessionSummaryWithPath[]> {
         project.decodedPath,
         project.projectName,
         stat.size,
+        provider,
       )
 
       if (summary) {
-        const active = await isSessionActive(project.dirName, sessionId)
+        const active = provider === 'claude' ? await isSessionActive(project.dirName, sessionId) : false
         summary.isActive = active
-        summary.sessionState = getSessionState(active, stat.mtimeMs)
-        summary.claudeName = claudeNames.get(sessionId) ?? summary.claudeName ?? null
+        summary.provider = provider
+        summary.sessionState = provider === 'claude' ? (active ? 'working' : 'inactive') : 'inactive'
+        summary.claudeName = provider === 'claude' ? (summary.claudeName ?? null) : null
 
-        summaryCache.set(sessionId, {
+        summaryCache.set(cacheKey, {
           mtimeMs: stat.mtimeMs,
           summary,
         })

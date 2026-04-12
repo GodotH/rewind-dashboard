@@ -7,6 +7,8 @@ SESSION="rewind-dashboard-e2e"
 PORT="${REWIND_E2E_PORT:-3001}"
 SCREENSHOT_DIR="$ROOT_DIR/e2e/screenshots"
 CLAUDE_HOME_FIXTURE="$ROOT_DIR/e2e/fixtures/.claude"
+CODEX_HOME_FIXTURE="$ROOT_DIR/e2e/fixtures/.codex"
+GEMINI_HOME_FIXTURE="$ROOT_DIR/e2e/fixtures/.gemini"
 DEV_PID=""
 SERVER_MODE="${REWIND_E2E_SERVER_MODE:-packaged}"
 
@@ -82,9 +84,9 @@ mkdir -p "$SCREENSHOT_DIR"
 
 cd "$ROOT_DIR"
 if [[ "$SERVER_MODE" == "dev" ]]; then
-  CLAUDE_HOME="$CLAUDE_HOME_FIXTURE" pnpm run dev -- --host 127.0.0.1 --port "$PORT" >/tmp/rewind-dashboard-e2e.log 2>&1 &
+  CLAUDE_HOME="$CLAUDE_HOME_FIXTURE" CODEX_HOME="$CODEX_HOME_FIXTURE" GEMINI_HOME="$GEMINI_HOME_FIXTURE" pnpm run dev -- --host 127.0.0.1 --port "$PORT" >/tmp/rewind-dashboard-e2e.log 2>&1 &
 else
-  CLAUDE_HOME="$CLAUDE_HOME_FIXTURE" node ./bin/cli.mjs --host 127.0.0.1 --port "$PORT" >/tmp/rewind-dashboard-e2e.log 2>&1 &
+  CLAUDE_HOME="$CLAUDE_HOME_FIXTURE" CODEX_HOME="$CODEX_HOME_FIXTURE" GEMINI_HOME="$GEMINI_HOME_FIXTURE" node ./bin/cli.mjs --host 127.0.0.1 --port "$PORT" >/tmp/rewind-dashboard-e2e.log 2>&1 &
 fi
 DEV_PID=$!
 
@@ -111,7 +113,7 @@ settle_page
 settle_page
 wait_for_body_contains "app"
 wait_for_body_contains "another"
-wait_for_body_contains "All Claude Code sessions"
+wait_for_body_contains "All local AI sessions"
 wait_for_body_contains "Help me refactor the main module"
 pass "sessions page shows fixture sessions"
 "$AGENT_BROWSER_BIN" --session "$SESSION" screenshot "$SCREENSHOT_DIR/sessions-list.png"

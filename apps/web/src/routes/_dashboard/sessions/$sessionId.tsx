@@ -22,9 +22,12 @@ import { sessionToJSON, downloadFile } from '@/lib/utils/export-utils'
 import { ExportDropdown } from '@/components/ExportDropdown'
 import { usePrivacy } from '@/features/privacy/PrivacyContext'
 import { z } from 'zod'
+import { ProviderBadge } from '@/features/sessions/ProviderBadge'
+import type { SessionProvider } from '@/lib/parsers/types'
 
 const searchSchema = z.object({
   project: z.string().optional(),
+  provider: z.enum(['claude', 'gemini', 'codex']).optional(),
 })
 
 export const Route = createFileRoute('/_dashboard/sessions/$sessionId')({
@@ -114,15 +117,16 @@ function DetailRenameButton({
 
 function SessionDetailPage() {
   const { sessionId } = Route.useParams()
-  const { project = '' } = Route.useSearch()
+  const { project = '', provider = 'claude' } = Route.useSearch()
 
   const { privacyMode, anonymizeProjectName, anonymizeBranch } = usePrivacy()
-  const isActive = useIsSessionActive(sessionId)
+  const claudeIsActive = useIsSessionActive(sessionId)
+  const isActive = provider === 'claude' ? claudeIsActive : false
   const { data: metadata } = useQuery(metadataQuery)
   const sessionMeta = metadata?.sessions[sessionId]
 
   const { data: detail, isLoading, error } = useQuery(
-    sessionDetailQuery(sessionId, project, isActive),
+    sessionDetailQuery(sessionId, project, provider as SessionProvider, isActive),
   )
 
   if (isLoading) {
@@ -151,6 +155,7 @@ function SessionDetailPage() {
   }
 
   const firstUserTurn = detail.turns.find((t) => t.type === 'user' && t.message)
+  const detailProvider = detail.provider ?? 'claude'
   const sessionTitle = sessionMeta?.customName || firstUserTurn?.message?.slice(0, 120) || detail.projectName
 
   const startedAt = detail.turns[0]?.timestamp
@@ -173,11 +178,14 @@ function SessionDetailPage() {
           >
             &larr; Sessions
           </Link>
-          <h1 className="mt-1 text-xl font-bold text-gray-100" title={sessionTitle}>
-            {privacyMode
-              ? anonymizeProjectName(detail.projectName)
-              : sessionTitle}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="mt-1 text-xl font-bold text-gray-100" title={sessionTitle}>
+              {privacyMode
+                ? anonymizeProjectName(detail.projectName)
+                : sessionTitle}
+            </h1>
+            <ProviderBadge provider={detailProvider} />
+          </div>
           <div className="mt-1 flex items-center gap-1.5">
             <span className="rounded bg-blue-900/20 border border-blue-800/40 px-1.5 py-0.5 text-xs text-blue-300">
               Project: {detail.projectName}
@@ -199,7 +207,7 @@ function SessionDetailPage() {
                   key={m}
                   className="rounded bg-gray-800 px-1.5 py-0.5 text-[10px] font-mono text-gray-400"
                 >
-                  {m.replace(/^claude-/, '').split('-202')[0]}
+                  {m.replace(/^(claude|gemini)-/, '').split('-202')[0]}
                 </span>
               ))}
             </div>
@@ -208,7 +216,7 @@ function SessionDetailPage() {
         <div className="flex items-center gap-2">
           <DetailPinButton sessionId={sessionId} pinned={sessionMeta?.pinned ?? false} />
           <DetailRenameButton sessionId={sessionId} currentName={sessionMeta?.customName || ''} />
-          <LaunchButton sessionId={sessionId} cwd={detail.cwd || detail.projectPath} size="md" />
+          {detailProvider === 'claude' && <LaunchButton sessionId={sessionId} cwd={detail.projectPath} size="md" />}
           <ExportDropdown
             options={[
               {
@@ -277,19 +285,21 @@ function SessionDetailPage() {
 
       {/* Conversation */}
       <div className="mt-6">
-        <ConversationSection sessionId={sessionId} projectPath={detail.projectPath} />
+        <ConversationSection sessionId={sessionId} projectPath={detail.projectPath} provider={detailProvider} />
       </div>
 
     </div>
   )
 }
 
-function ConversationSection({ sessionId, projectPath }: { sessionId: string; projectPath: string }) {
+function ConversationSection({ sessionId, projectPath, provider }: { sessionId: string; projectPath: string; provider: SessionProvider }) {
   const [expanded, setExpanded] = useState(false)
   const { data: messages, isLoading } = useQuery({
-    ...chatQuery(sessionId, projectPath),
+    ...chatQuery(sessionId, projectPath, provider),
     enabled: expanded,
   })
+
+  const assistantName = provider === 'codex' ? 'Codex' : provider === 'gemini' ? 'Gemini' : 'Claude'
 
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900/50">
@@ -318,7 +328,7 @@ function ConversationSection({ sessionId, projectPath }: { sessionId: string; pr
                     : 'bg-gray-800 text-gray-300'
                 }`}>
                   <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                    {msg.role === 'user' ? 'You' : 'Claude'}
+                    {msg.role === 'user' ? 'You' : assistantName}
                     {msg.timestamp && (
                       <span className="ml-2 font-normal normal-case">{formatDateTime(msg.timestamp)}</span>
                     )}

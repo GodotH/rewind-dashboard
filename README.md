@@ -1,8 +1,8 @@
 # Rewind Dashboard
 
-**Find, manage and launch your previous Claude Code sessions.**
+**Find, manage and launch your previous Claude, Codex, and Gemini sessions.**
 
-A local-first dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) power users. Star sessions, rename them, organize by project, sort by activity, read full conversations, and resume any session from the browser. Everything runs locally — no data leaves your machine.
+A local-first dashboard for local AI coding sessions. Rewind reads Claude, Codex, and Gemini histories, lets you star and rename sessions, organize by project, sort by activity, read full conversations, and resume supported sessions from the browser. Everything runs locally; no session data leaves your machine.
 
 Fork of [claude-session-dashboard](https://github.com/dlupiak/claude-session-dashboard) by [Dmytro Lupiak](https://github.com/dlupiak).
 
@@ -192,7 +192,15 @@ cd apps/web
 pnpm install --frozen-lockfile
 pnpm run dev -- --port 3030      # dev server
 pnpm test                        # run tests
+pnpm run e2e                     # agent-browser packaged smoke
 ```
+
+## Browser Test Policy
+
+- `agent-browser` is the only supported browser automation path in this repo.
+- Playwright is forbidden and must not be reintroduced.
+- Do not add `playwright.config.*`, `@playwright/test`, Playwright specs, or Playwright-oriented skills/docs.
+- Browser E2E coverage lives in [`apps/web/e2e/agent-browser-smoke.sh`](./apps/web/e2e/agent-browser-smoke.sh).
 
 > **Note**: Production build has a known TanStack Start issue on Node v24. Use dev mode (`pnpm run dev`).
 

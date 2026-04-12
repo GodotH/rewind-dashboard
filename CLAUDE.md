@@ -73,7 +73,7 @@ pnpm run build       # Production build
 pnpm run typecheck   # TypeScript checking
 pnpm run test        # Vitest unit tests
 pnpm run lint        # ESLint (no Prettier — ESLint only)
-pnpm run e2e         # agent-browser E2E smoke (port 3001, fixtures at e2e/fixtures/.claude)
+pnpm run e2e         # agent-browser E2E smoke (packaged app, fixture homes for Claude/Codex/Gemini)
 ```
 
 ## Architecture (brief)
@@ -93,6 +93,8 @@ pnpm run e2e         # agent-browser E2E smoke (port 3001, fixtures at e2e/fixtu
 - ESLint only — no Prettier or formatter configured
 - Architecture boundary tests in `src/__tests__/architecture/` enforce cross-slice import rules in CI
 - Quality gates before PR: typecheck, lint, test, build (all must pass)
+- `agent-browser` is the only approved browser automation tool here
+- Never add or restore Playwright configs, specs, dependencies, or skill docs
 - Never push directly to main
 - Do NOT add `Co-Authored-By` trailers to commit messages
 

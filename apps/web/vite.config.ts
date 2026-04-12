@@ -73,7 +73,7 @@ function launchSessionPlugin(): Plugin {
                 }
               }
             } catch {}
-            const resumeCmd = `claude --resume ${sessionId} --dangerously-skip-permissions`
+            const resumeCmd = `claude --resume ${sessionId}`
             const isWin = platform() === 'win32'
             let child
             if (isWin) {

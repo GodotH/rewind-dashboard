@@ -54,21 +54,22 @@ if (hasFlag('version', 'v')) {
 const port = Number(getArg('port', 'p')) || 3000;
 const host = getArg('host') || 'localhost';
 const shouldOpen = hasFlag('open', 'o');
+const claudeDir = process.env.CLAUDE_HOME
+  ? resolve(process.env.CLAUDE_HOME)
+  : join(homedir(), '.claude');
 
 // --- Pre-flight checks ---
-
-const claudeDir = join(homedir(), '.claude');
 try {
   await access(claudeDir);
 } catch {
-  console.warn(`\nWarning: ~/.claude directory not found. The dashboard may not show any sessions.\n`);
+  console.warn(`\nWarning: Claude data directory not found at ${claudeDir}. The dashboard may not show any sessions.\n`);
 }
 
 try {
   await access(join(distDir, 'server', 'server.js'));
 } catch {
   console.error(`\nError: Built files not found at ${distDir}/server/server.js`);
-  console.error('Run "npm run build" first, then try again.\n');
+  console.error('Run "pnpm run build" first, then try again.\n');
   process.exit(1);
 }
 
@@ -194,7 +195,7 @@ server.listen(port, host, () => {
   console.log(`
   Claude Session Dashboard v${pkg.version}
   Running at ${url}
-  Reading sessions from ~/.claude
+  Reading sessions from ${claudeDir}
 
   Press Ctrl+C to stop
 `);

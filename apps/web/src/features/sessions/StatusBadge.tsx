@@ -6,17 +6,19 @@ const SPINNER_CHARS = ['\u280B', '\u2819', '\u2839', '\u2838', '\u283C', '\u2834
 
 function BrailleSpinner({ offset }: { offset: number }) {
   const [frame, setFrame] = useState(offset % SPINNER_CHARS.length)
-  const startRef = useRef(Date.now())
+  const startRef = useRef(0)
+
   useEffect(() => {
+    startRef.current = Date.now()
     const id = setInterval(() => {
       const elapsed = Date.now() - startRef.current
       setFrame((offset + Math.floor(elapsed / 80)) % SPINNER_CHARS.length)
     }, 80)
     return () => clearInterval(id)
   }, [offset])
+
   return <span>{SPINNER_CHARS[frame]}</span>
 }
-
 
 function BlinkingCursor() {
   const [visible, setVisible] = useState(true)
@@ -32,7 +34,7 @@ export function StatusBadge({ isActive, sessionState }: { isActive: boolean; ses
 
   if (state === 'working') {
     return (
-      <span className="inline-flex items-center border border-matrix/20 bg-matrix/10 px-2 py-0.5 text-sm font-mono text-matrix tracking-tight border-l-0 working-glow">
+      <span className="inline-flex items-center border border-matrix/20 bg-matrix/10 px-2 py-0.5 text-sm font-mono tracking-tight text-matrix border-l-0 working-glow">
         <BrailleSpinner offset={0} /><BrailleSpinner offset={2} /><BrailleSpinner offset={5} /><BrailleSpinner offset={7} /><BrailleSpinner offset={1} /><BrailleSpinner offset={4} /><BrailleSpinner offset={9} /><BrailleSpinner offset={3} /><BrailleSpinner offset={6} /><BrailleSpinner offset={8} />
       </span>
     )
@@ -40,7 +42,7 @@ export function StatusBadge({ isActive, sessionState }: { isActive: boolean; ses
 
   if (state === 'waiting') {
     return (
-      <span className="inline-flex items-center border border-matrix/20 bg-matrix/10 px-2 py-0.5 text-sm font-mono text-matrix/50 tracking-tight border-l-0 min-w-[6.5rem]">
+      <span className="inline-flex min-w-[6.5rem] items-center border border-matrix/20 bg-matrix/10 px-2 py-0.5 text-sm font-mono tracking-tight text-matrix/50 border-l-0">
         {'> waiting\u00a0'}<BlinkingCursor />{' '}
       </span>
     )

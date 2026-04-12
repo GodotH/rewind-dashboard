@@ -1,8 +1,8 @@
 # Rewind Dashboard
 
-**Find, manage and launch your previous Claude Code sessions.**
+**Find, manage and launch your previous Claude, Codex, and Gemini sessions.**
 
-A local-first dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) power users. Star sessions, rename them, organize by project, sort by activity, read full conversations, and resume any session from the browser. Everything runs locally — no data leaves your machine.
+A local-first dashboard for local AI coding sessions. Rewind reads Claude, Codex, and Gemini histories, lets you star and rename sessions, organize by project, sort by activity, read full conversations, and resume supported sessions from the browser. Everything runs locally; no session data leaves your machine.
 
 Fork of [claude-session-dashboard](https://github.com/dlupiak/claude-session-dashboard) by [Dmytro Lupiak](https://github.com/dlupiak).
 
@@ -49,8 +49,8 @@ Fork of [claude-session-dashboard](https://github.com/dlupiak/claude-session-das
 ```bash
 git clone https://github.com/GodotH/rewind-dashboard.git
 cd rewind-dashboard/apps/web
-npm install
-npx vite --port 3030
+pnpm install --frozen-lockfile
+pnpm run dev -- --port 3030
 ```
 
 Open **http://localhost:3030** in your browser.
@@ -73,7 +73,7 @@ Create `start-rewind.vbs`:
 
 ```vbs
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run "cmd /c cd /d ""C:\path\to\rewind-dashboard\apps\web"" && npx vite --port 3030", 0, False
+WshShell.Run "cmd /c cd /d ""C:\path\to\rewind-dashboard\apps\web"" && pnpm run dev -- --port 3030", 0, False
 ```
 
 Register as a scheduled task:
@@ -94,7 +94,7 @@ cat > ~/Library/LaunchAgents/com.rewind-dashboard.plist << 'EOF'
 <dict>
     <key>Label</key><string>com.rewind-dashboard</string>
     <key>ProgramArguments</key>
-    <array><string>npx</string><string>vite</string><string>--port</string><string>3030</string></array>
+    <array><string>pnpm</string><string>run</string><string>dev</string><string>--</string><string>--port</string><string>3030</string></array>
     <key>WorkingDirectory</key><string>/path/to/rewind-dashboard/apps/web</string>
     <key>RunAtLoad</key><true/>
     <key>KeepAlive</key><true/>
@@ -114,7 +114,7 @@ Description=Rewind Dashboard
 
 [Service]
 WorkingDirectory=/path/to/rewind-dashboard/apps/web
-ExecStart=npx vite --port 3030
+ExecStart=pnpm run dev -- --port 3030
 Restart=on-failure
 
 [Install]
@@ -129,7 +129,7 @@ systemctl --user enable --now rewind-dashboard
 
 Rewind Dashboard is a web app — it runs in any browser. To access from an iPhone or iPad:
 
-**Local network**: Start with `npx vite --port 3030 --host 0.0.0.0`, then open `http://<your-ip>:3030` in Safari. Add to Home Screen for an app-like experience.
+**Local network**: Start with `pnpm run dev -- --port 3030 --host 0.0.0.0`, then open `http://<your-ip>:3030` in Safari. Add to Home Screen for an app-like experience.
 
 **Remote access**: Use [Tailscale](https://tailscale.com) or [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) (`cloudflared tunnel --url http://localhost:3030`).
 
@@ -189,12 +189,20 @@ Other sort modes (Most Active, Longest, Largest) sort literally without star boo
 
 ```bash
 cd apps/web
-npm install
-npx vite --port 3030      # dev server
-npx vitest                 # run tests
+pnpm install --frozen-lockfile
+pnpm run dev -- --port 3030      # dev server
+pnpm test                        # run tests
+pnpm run e2e                     # agent-browser packaged smoke
 ```
 
-> **Note**: Production build has a known TanStack Start issue on Node v24. Use dev mode (`npx vite`).
+## Browser Test Policy
+
+- `agent-browser` is the only supported browser automation path in this repo.
+- Playwright is forbidden and must not be reintroduced.
+- Do not add `playwright.config.*`, `@playwright/test`, Playwright specs, or Playwright-oriented skills/docs.
+- Browser E2E coverage lives in [`apps/web/e2e/agent-browser-smoke.sh`](./apps/web/e2e/agent-browser-smoke.sh).
+
+> **Note**: Production build has a known TanStack Start issue on Node v24. Use dev mode (`pnpm run dev`).
 
 ## Credits
 

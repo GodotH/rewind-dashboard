@@ -1,17 +1,21 @@
 version: 2
 updates:
-  # Enable version updates for npm (apps/web)
+  # Keep the application dependency graph current under pnpm.
   - package-ecosystem: "npm"
     directory: "/apps/web"
     schedule:
       interval: "weekly"
       day: "monday"
+      time: "06:00"
+      timezone: "America/Toronto"
     open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "javascript"
     ignore:
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
     groups:
-      # Group minor and patch updates together
       production-dependencies:
         dependency-type: "production"
         update-types:
@@ -23,10 +27,18 @@ updates:
           - "minor"
           - "patch"
 
-  # Check for GitHub Actions updates
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
+      time: "06:30"
+      timezone: "America/Toronto"
     open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

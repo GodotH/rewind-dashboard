@@ -111,7 +111,7 @@ export function TerminalLoader() {
             const isLatest = i === logLines.length - 1
             return (
               <div
-                key={`${logIdxRef.current - logLines.length + i}`}
+                key={`${i}-${line}`}
                 className="flex gap-2 transition-opacity duration-300"
                 style={{ opacity: isLatest ? 1 : 0.4 }}
               >

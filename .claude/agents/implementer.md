@@ -9,7 +9,7 @@ skills:
   - tanstack-start
   - typescript-rules
   - react-rules
-  - playwright-cli
+  - browser-automation
 ---
 
 You are a Senior Full-Stack Engineer implementing a full stack application.
@@ -32,4 +32,4 @@ Rules:
 Available plugins:
 - Use **context7** to look up library documentation and code examples
 - Use **frontend-design** for high-quality, production-grade UI components
-- Use **playwright-cli** to visually verify UI after implementation (`playwright-cli screenshot`)
+- Use **browser-automation** with `agent-browser` to visually verify UI after implementation

@@ -1,7 +1,8 @@
 import { Link, useMatches } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { type ReactNode } from 'react'
+import { type ReactNode, useEffect, useRef } from 'react'
 import { ActiveSessionsBadge } from '@/features/sessions/ActiveSessionsBadge'
+import { activeSessionsQuery } from '@/features/sessions/sessions.queries'
 import { appInfoQuery } from '@/features/settings/app-info.queries'
 
 const NAV_ITEMS = [
@@ -48,23 +49,95 @@ const NAV_ITEMS = [
   },
 ] as const
 
+const MATRIX_CHARS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789'
+
+function MatrixBackground({ active }: { active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const dropsRef = useRef<number[]>([])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const resize = () => {
+      canvas.width = canvas.offsetWidth
+      canvas.height = canvas.offsetHeight
+      const fontSize = 12
+      const cols = Math.floor(canvas.width / fontSize)
+      dropsRef.current = Array.from({ length: cols }, () => Math.random() * -30)
+    }
+    resize()
+    window.addEventListener('resize', resize)
+
+    const fontSize = 12
+    let animId: number
+
+    const draw = () => {
+      if (!active) {
+        ctx.fillStyle = 'rgba(10, 10, 10, 0.05)'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        animId = requestAnimationFrame(draw)
+        return
+      }
+
+      ctx.fillStyle = 'rgba(10, 10, 10, 0.12)'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.font = `${fontSize}px monospace`
+
+      const drops = dropsRef.current
+      for (let i = 0; i < drops.length; i++) {
+        const char = MATRIX_CHARS[Math.floor(Math.random() * MATRIX_CHARS.length)]
+        const brightness = Math.random()
+        ctx.fillStyle = brightness > 0.95
+          ? 'rgba(200, 255, 220, 0.9)'
+          : `rgba(0, 255, 65, ${0.06 + brightness * 0.15})`
+        ctx.fillText(char, i * fontSize, drops[i] * fontSize)
+
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.97) {
+          drops[i] = 0
+        }
+        drops[i] += 0.2 + Math.random() * 0.3
+      }
+      animId = requestAnimationFrame(draw)
+    }
+
+    animId = requestAnimationFrame(draw)
+    return () => {
+      cancelAnimationFrame(animId)
+      window.removeEventListener('resize', resize)
+    }
+  }, [active])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className={`pointer-events-none fixed inset-0 z-0 h-full w-full transition-opacity duration-[3000ms] ${active ? 'opacity-60' : 'opacity-0'}`}
+    />
+  )
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const matches = useMatches()
   const currentPath = matches[matches.length - 1]?.pathname ?? ''
   const { data: appInfo } = useQuery(appInfoQuery)
+  const { data: activeSessions } = useQuery(activeSessionsQuery)
+  const hasWorkingSessions = (activeSessions ?? []).some((s) => s.sessionState === 'working')
 
   return (
     <div className="relative flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="relative flex w-56 shrink-0 flex-col border-r border-gray-800 bg-gray-950">
-        <div className="flex px-4 pt-6 pb-3">
+      <MatrixBackground active={hasWorkingSessions} />
+      <aside className="relative z-10 flex w-56 shrink-0 flex-col border-r border-gray-800 bg-gray-950/80 backdrop-blur-sm">
+        <div className="flex h-14 items-center border-b border-gray-800 px-4">
           <Link to="/dashboard" className="group flex items-baseline gap-1.5 tracking-tight">
-            <span className="text-3xl font-black italic text-[#ff6600] neon-glow-brand transition-all group-hover:text-[#ff6600]/80">Rewind</span>
-            <span className="ml-1.5 text-xs text-gray-500">v1.03</span>
+            <span className="text-lg font-black italic text-brand-500 neon-glow-brand transition-all group-hover:text-brand-400">Rewind</span>
+            <span className="text-lg font-normal text-gray-400">dashboard</span>
+            <span className="ml-1 text-[11px] text-gray-500">v1.03</span>
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 pt-10 pb-3">
+        <nav className="flex-1 p-3">
           {NAV_ITEMS.map((item) => {
             const isActive = currentPath.startsWith(item.to)
             return (
@@ -85,8 +158,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        {/* <div className="border-t border-gray-800" /> */}
-        <div className="p-3 space-y-3">
+        <div className="border-t border-gray-800 p-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <a
@@ -114,8 +186,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="relative flex-1 overflow-auto bg-gray-950">
+      <main className="relative z-10 flex-1 overflow-auto bg-gray-950/85 backdrop-blur-sm">
         <div className="mx-auto max-w-5xl px-6 py-6">{children}</div>
       </main>
     </div>

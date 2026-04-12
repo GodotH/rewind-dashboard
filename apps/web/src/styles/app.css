@@ -1,7 +1,6 @@
 @import 'tailwindcss';
 
 @theme {
-  /* Default palette (dark) */
   --color-gray-50: #f5f3ec;
   --color-gray-100: #eae6dc;
   --color-gray-200: #e0dbd0;
@@ -14,14 +13,12 @@
   --color-gray-900: #1c1c1a;
   --color-gray-950: #141413;
 
-  /* Brand terracotta accent */
   --color-brand-300: #f0b8a0;
   --color-brand-400: #e09070;
   --color-brand-500: #d97757;
   --color-brand-600: #c4643f;
   --color-brand-700: #a8512e;
 
-  /* Matrix green accent */
   --color-matrix: #00ff41;
 }
 
@@ -31,7 +28,6 @@
 
 :root[data-theme='light'] {
   color-scheme: light;
-  /* Invert the gray scale so dark-numbered tokens become light surfaces */
   --color-gray-50: #141413;
   --color-gray-100: #1c1c1a;
   --color-gray-200: #2a2926;

@@ -11,7 +11,6 @@ import { ModelUsageChart } from '@/features/stats/ModelUsageChart'
 import { HourlyDistribution } from '@/features/stats/HourlyDistribution'
 import { SessionCard } from '@/features/sessions/SessionCard'
 import { ExportDropdown } from '@/components/ExportDropdown'
-import { TerminalLoader } from '@/components/TerminalLoader'
 import {
   dailyActivityToCSV,
   dailyTokensToCSV,
@@ -60,17 +59,17 @@ function DashboardPage() {
 
   const { cost } = useSessionCost(tokensByModel)
 
-  // Time-period breakdowns
   const periods = useMemo(() => {
     if (!stats) return null
+    const currentStats = stats
     const now = new Date()
     const dayAgo = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
     function sumPeriod(since: Date) {
-      const days = stats!.dailyActivity.filter((d) => new Date(d.date) >= since)
-      const tokenDays = stats!.dailyModelTokens.filter((d) => new Date(d.date) >= since)
+      const days = currentStats.dailyActivity.filter((d) => new Date(d.date) >= since)
+      const tokenDays = currentStats.dailyModelTokens.filter((d) => new Date(d.date) >= since)
       const sessionCount = days.reduce((s, d) => s + d.sessionCount, 0)
       const toolCalls = days.reduce((s, d) => s + d.toolCallCount, 0)
       let totalTokens = 0
@@ -83,11 +82,11 @@ function DashboardPage() {
     }
 
     const total = {
-      sessionCount: stats.totalSessions,
-      toolCalls: stats.dailyActivity.reduce((s, d) => s + d.toolCallCount, 0),
-      totalTokens: Object.values(stats.modelUsage).reduce((s, m) => s + m.inputTokens + m.outputTokens, 0),
-      inputTokens: Object.values(stats.modelUsage).reduce((s, m) => s + m.inputTokens, 0),
-      outputTokens: Object.values(stats.modelUsage).reduce((s, m) => s + m.outputTokens, 0),
+      sessionCount: currentStats.totalSessions,
+      toolCalls: currentStats.dailyActivity.reduce((s, d) => s + d.toolCallCount, 0),
+      totalTokens: Object.values(currentStats.modelUsage).reduce((s, m) => s + m.inputTokens + m.outputTokens, 0),
+      inputTokens: Object.values(currentStats.modelUsage).reduce((s, m) => s + m.inputTokens, 0),
+      outputTokens: Object.values(currentStats.modelUsage).reduce((s, m) => s + m.outputTokens, 0),
     }
 
     return {
@@ -103,9 +102,18 @@ function DashboardPage() {
   if (statsLoading && sessionsLoading) {
     return (
       <div>
-        <h1 className="text-2xl font-bold text-matrix">Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-100">Dashboard</h1>
         <p className="mt-1 text-sm text-gray-400">Overview of your Claude Code activity</p>
-        <TerminalLoader />
+        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-20 animate-pulse rounded-xl border border-gray-800 bg-gray-900/50" />
+          ))}
+        </div>
+        <div className="mt-6 space-y-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-40 animate-pulse rounded-xl border border-gray-800 bg-gray-900/50" />
+          ))}
+        </div>
       </div>
     )
   }
@@ -114,7 +122,7 @@ function DashboardPage() {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-matrix">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-100">Dashboard</h1>
           <p className="mt-1 text-sm text-gray-400">Overview of your Claude Code activity</p>
         </div>
         {stats && (
@@ -141,67 +149,61 @@ function DashboardPage() {
         )}
       </div>
 
-      {/* Unified Stats Box */}
-      <div className="mt-6 border border-gray-800 bg-gray-900/50 p-4">
-        <div className="grid grid-cols-4 gap-4 md:gap-6">
-          <Link to="/sessions" className="group">
-            <p className="text-[10px] uppercase tracking-wide text-gray-500">Sessions</p>
-            <p className="mt-1 text-xl font-bold text-gray-100 group-hover:text-matrix transition-colors">{stats ? String(stats.totalSessions) : '--'}</p>
-            <p className="text-xs text-gray-500">{thisWeekSessions} this week</p>
-          </Link>
-          <Link to="/sessions" className="group">
-            <p className="text-[10px] uppercase tracking-wide text-gray-500">Messages</p>
-            <p className="mt-1 text-xl font-bold text-gray-100 group-hover:text-matrix transition-colors">{stats ? stats.totalMessages.toLocaleString() : '--'}</p>
-            <p className="text-xs text-gray-500">{stats ? formatDuration(stats.longestSession.duration) : '--'} longest</p>
-          </Link>
-          <div>
-            <p className="text-[10px] uppercase tracking-wide text-gray-500">Tokens</p>
-            <p className="mt-1 text-xl font-bold text-matrix/80">{periods ? formatTokenCount(periods.total.totalTokens) : '--'}</p>
-            <p className="text-xs text-gray-500">{periods ? formatTokenCount(periods.week.totalTokens) : '--'} 7d</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wide text-gray-500">Cost</p>
-            <p className="mt-1 text-xl font-bold text-gray-100">{cost ? `~${formatUSD(cost.totalUSD)}` : '--'}</p>
-            <p className="text-xs text-gray-500">{periods ? `${periods.today.sessionCount} today` : ''}</p>
-          </div>
-        </div>
-
-        {/* Tokens & Cost period breakdown */}
-        {periods && (
-          <>
-            <div className="my-3 border-t border-gray-800" />
-            <p className="text-[10px] uppercase tracking-wide text-gray-500 mb-2">Tokens & Cost</p>
-            <div className="grid grid-cols-4 gap-4 md:gap-6">
-              <div>
-                <p className="text-[10px] uppercase tracking-wide text-gray-500">Today</p>
-                <p className="mt-1 text-xl font-bold text-gray-100">{formatTokenCount(periods.today.totalTokens)}</p>
-                <p className="text-xs text-gray-500">{periods.today.sessionCount} sessions</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wide text-gray-500">7 Days</p>
-                <p className="mt-1 text-xl font-bold text-gray-100">{formatTokenCount(periods.week.totalTokens)}</p>
-                <p className="text-xs text-gray-500">{periods.week.sessionCount} sessions</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wide text-gray-500">30 Days</p>
-                <p className="mt-1 text-xl font-bold text-gray-100">{formatTokenCount(periods.month.totalTokens)}</p>
-                <p className="text-xs text-gray-500">{periods.month.sessionCount} sessions</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wide text-gray-500">All Time</p>
-                <p className="mt-1 text-xl font-bold text-gray-100">{formatTokenCount(periods.total.totalTokens)}</p>
-                <p className="text-xs text-gray-500">{cost ? `~${formatUSD(cost.totalUSD)}` : ''}</p>
-              </div>
-            </div>
-          </>
-        )}
+      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Link to="/sessions" className="group">
+          <QuickStatCard label="Total Sessions" value={stats ? String(stats.totalSessions) : '--'} accent="text-blue-400" icon={
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="4" x2="14" y2="4" /><line x1="2" y1="8" x2="14" y2="8" /><line x1="2" y1="12" x2="14" y2="12" /></svg>
+          } />
+        </Link>
+        <Link to="/sessions" className="group">
+          <QuickStatCard label="Total Messages" value={stats ? stats.totalMessages.toLocaleString() : '--'} accent="text-purple-400" icon={
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor"><path d="M2 2a2 2 0 00-2 2v8a2 2 0 002 2h8l4 2v-4a2 2 0 002-2V4a2 2 0 00-2-2H2z" /></svg>
+          } />
+        </Link>
+        <Link to="/sessions" className="group">
+          <QuickStatCard label="This Week" value={String(thisWeekSessions)} sub="sessions" accent="text-emerald-400" icon={
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor"><path d="M4 0a1 1 0 011 1v1h6V1a1 1 0 112 0v1h1a2 2 0 012 2v10a2 2 0 01-2 2H2a2 2 0 01-2-2V4a2 2 0 012-2h1V1a1 1 0 011-1zm-2 6v8h12V6H2z" /></svg>
+          } />
+        </Link>
+        <Link to="/sessions" search={{ status: 'active' } as never} className="group">
+          <QuickStatCard label="Longest Session" value={stats ? formatDuration(stats.longestSession.duration) : '--'} sub={stats ? `${stats.longestSession.messageCount} messages` : undefined} accent="text-brand-400" icon={
+            <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.5" /><line x1="8" y1="3" x2="8" y2="8" stroke="currentColor" strokeWidth="1.5" /><line x1="8" y1="8" x2="11" y2="11" stroke="currentColor" strokeWidth="1.5" /></svg>
+          } />
+        </Link>
       </div>
 
-      {/* Recent Sessions — uses SessionCard like sessions tab */}
+      {periods && (
+        <div className="mt-4 rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+          <h2 className="text-sm font-semibold text-gray-300">Tokens & Cost</h2>
+          <div className="mt-3 grid grid-cols-4 gap-3 text-center">
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-gray-500">Today</p>
+              <p className="mt-1 text-lg font-bold text-gray-100">{formatTokenCount(periods.today.totalTokens)}</p>
+              <p className="text-xs text-gray-500">{periods.today.sessionCount} sessions</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-gray-500">7 Days</p>
+              <p className="mt-1 text-lg font-bold text-gray-100">{formatTokenCount(periods.week.totalTokens)}</p>
+              <p className="text-xs text-gray-500">{periods.week.sessionCount} sessions</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-gray-500">30 Days</p>
+              <p className="mt-1 text-lg font-bold text-gray-100">{formatTokenCount(periods.month.totalTokens)}</p>
+              <p className="text-xs text-gray-500">{periods.month.sessionCount} sessions</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-gray-500">All Time</p>
+              <p className="mt-1 text-lg font-bold text-gray-100">{formatTokenCount(periods.total.totalTokens)}</p>
+              <p className="text-xs text-emerald-400/80">{cost ? `~${formatUSD(cost.totalUSD)}` : ''}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mt-6">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-300">Recent Sessions</h2>
-          <Link to="/sessions" className="text-xs font-medium text-brand-400 hover:text-brand-300 transition-colors">
+          <Link to="/sessions" className="text-xs font-medium text-brand-400 transition-colors hover:text-brand-300">
             View all &rarr;
           </Link>
         </div>
@@ -221,7 +223,6 @@ function DashboardPage() {
         )}
       </div>
 
-      {/* Full Charts Section */}
       {stats && (
         <>
           <div className="mt-6">
@@ -246,5 +247,31 @@ function DashboardPage() {
   )
 }
 
-
-
+function QuickStatCard({
+  label,
+  value,
+  sub,
+  icon,
+  accent,
+  truncateValue,
+}: {
+  label: string
+  value: string
+  sub?: string
+  icon: React.ReactNode
+  accent: string
+  truncateValue?: boolean
+}) {
+  return (
+    <div className="h-full rounded-xl border border-gray-800 bg-gray-900/50 p-4 transition-colors hover:border-gray-700 hover:bg-gray-900/70">
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wide text-gray-500">{label}</p>
+          <p className={`mt-2 text-xl font-bold ${accent} ${truncateValue ? 'truncate' : ''}`}>{value}</p>
+          {sub && <p className="mt-1 text-xs text-gray-500">{sub}</p>}
+        </div>
+        <div className={`mt-0.5 ${accent}`}>{icon}</div>
+      </div>
+    </div>
+  )
+}

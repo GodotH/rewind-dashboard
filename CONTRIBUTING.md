@@ -7,8 +7,8 @@ Thanks for your interest in contributing! This project is open to contributions 
 ```bash
 git clone https://github.com/dlupiak/claude-session-dashboard.git
 cd claude-session-dashboard/apps/web
-npm install
-npm run dev
+pnpm install --frozen-lockfile
+pnpm run dev
 ```
 
 The dev server runs on http://localhost:3000. It reads session data from `~/.claude` (read-only).
@@ -30,18 +30,18 @@ Each feature slice contains its own server functions, queries, and UI components
 ## Development Commands
 
 ```bash
-npm run dev          # Dev server
-npm run typecheck    # TypeScript checking
-npm run lint         # ESLint
-npm run test         # Unit tests (Vitest)
-npm run build        # Production build
+pnpm run dev         # Dev server
+pnpm run typecheck   # TypeScript checking
+pnpm run lint        # ESLint
+pnpm run test        # Unit tests (Vitest)
+pnpm run build       # Production build
 ```
 
 ## Making Changes
 
 1. Fork the repo and create a branch: `git checkout -b feature/your-feature`
 2. Make your changes
-3. Run quality checks: `npm run typecheck && npm run lint && npm run build`
+3. Run quality checks: `pnpm run typecheck && pnpm run lint && pnpm run build`
 4. Commit with a descriptive message
 5. Open a Pull Request
 

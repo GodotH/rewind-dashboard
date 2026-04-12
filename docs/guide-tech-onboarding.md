@@ -252,7 +252,7 @@ createServerFn({ method: 'GET' })
 - Test files: `*.test.ts` / `*.test.tsx` co-located with source
 - DOM environment: `happy-dom`
 - Component testing with `@testing-library/react`
-- Run: `cd apps/web && npm run test`
+- Run: `cd apps/web && pnpm run test`
 
 **Key files:**
 - `apps/web/vitest.config.ts` — configuration
@@ -264,24 +264,24 @@ createServerFn({ method: 'GET' })
 - [Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
 - [happy-dom](https://github.com/nicedoc/happy-dom)
 
-### Playwright (E2E Tests)
+### agent-browser (E2E Tests)
 
-**What it is:** Browser automation for end-to-end testing.
+**What it is:** Browser automation for end-to-end testing and operator-driven UI debugging.
 
 **How we use it:**
-- E2E tests in `apps/web/e2e/tests/*.spec.ts`
+- E2E smoke coverage in `apps/web/e2e/agent-browser-smoke.sh`
 - Fixture data in `apps/web/e2e/fixtures/.claude/`
 - `CLAUDE_HOME` env var points to fixtures during tests
 - Runs on `localhost:3001`
 
 **Key files:**
-- `apps/web/playwright.config.ts` — configuration
-- `apps/web/e2e/helpers/selectors.ts` — centralized selectors
+- `apps/web/e2e/agent-browser-smoke.sh` — smoke suite
+- `.claude/skills/browser-automation/SKILL.md` — CLI workflow guidance
 
 **Learn:**
-- [Playwright docs](https://playwright.dev/docs/intro)
-- [Writing tests](https://playwright.dev/docs/writing-tests)
-- [Locators](https://playwright.dev/docs/locators)
+- `agent-browser --help`
+- `agent-browser open <url>`
+- `agent-browser snapshot -i`
 
 ---
 
@@ -295,7 +295,7 @@ createServerFn({ method: 'GET' })
 - Config: `apps/web/eslint.config.js`
 - Plugins: typescript-eslint, react-hooks, react-refresh
 - Unused vars prefixed with `_` are allowed
-- Run: `cd apps/web && npx eslint .`
+- Run: `cd apps/web && pnpm run lint`
 
 **Learn:**
 - [ESLint flat config](https://eslint.org/docs/latest/use/configure/configuration-files)
@@ -443,13 +443,13 @@ docker compose up                     # Run via Docker Compose
 
 | Command | What it does |
 |---|---|
-| `cd apps/web && npm run dev` | Start dev server on localhost:3000 |
-| `cd apps/web && npm run build` | Production build |
-| `cd apps/web && npm run typecheck` | TypeScript type checking |
-| `cd apps/web && npm run test` | Run unit tests (Vitest) |
-| `cd apps/web && npm run test:ui` | Run tests with interactive UI |
-| `cd apps/web && npx eslint .` | Run linter |
-| `cd apps/web && npx playwright test` | Run E2E tests |
+| `cd apps/web && pnpm run dev` | Start dev server on localhost:3000 |
+| `cd apps/web && pnpm run build` | Production build |
+| `cd apps/web && pnpm run typecheck` | TypeScript type checking |
+| `cd apps/web && pnpm run test` | Run unit tests (Vitest) |
+| `cd apps/web && pnpm run test:ui` | Run tests with interactive UI |
+| `cd apps/web && pnpm run lint` | Run linter |
+| `cd apps/web && pnpm run e2e` | Run E2E smoke tests |
 
 ---
 
@@ -475,7 +475,7 @@ docker compose up                     # Run via Docker Compose
 | Zod | v3.x | Schema validation | [zod.dev](https://zod.dev) |
 | Vite | v7.x | Build tool / dev server | [vite.dev](https://vite.dev) |
 | Vitest | v4.x | Unit testing | [vitest.dev](https://vitest.dev) |
-| Playwright | v1.x | E2E testing | [playwright.dev](https://playwright.dev) |
+| agent-browser | CLI | E2E smoke testing | `agent-browser --help` |
 | date-fns | v4.x | Date formatting | [date-fns.org](https://date-fns.org) |
 | ESLint | v9.x | Linting | [eslint.org](https://eslint.org) |
 | TypeScript | v5.8 | Type safety | [typescriptlang.org](https://www.typescriptlang.org) |

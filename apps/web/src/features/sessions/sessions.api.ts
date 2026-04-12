@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { scanAllSessions, getActiveSessions } from '@/lib/scanner/session-scanner'
 import type { SessionSummary } from '@/lib/parsers/types'
-import { readMetadataSync } from '@/features/metadata/metadata.api'
+import { readMetadata } from '@/features/metadata/metadata.storage'
 import type { Metadata } from '@/features/metadata/metadata.types'
 
 export const getSessionList = createServerFn({ method: 'GET' }).handler(
@@ -183,6 +183,6 @@ export const getPaginatedSessions = createServerFn({ method: 'GET' })
   .inputValidator((input: unknown) => paginatedSessionsInputSchema.parse(input))
   .handler(async ({ data }): Promise<PaginatedSessionsResult> => {
     const allSessions = await scanAllSessions()
-    const metadata = readMetadataSync()
+    const metadata = await readMetadata()
     return paginateAndFilterSessions(allSessions, data, metadata)
   })

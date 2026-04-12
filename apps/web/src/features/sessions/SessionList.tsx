@@ -9,13 +9,13 @@ import { PaginationControls } from './PaginationControls'
 import { usePageSizePreference } from './usePageSizePreference'
 import { SessionListGrouped } from './SessionListGrouped'
 import { searchConversations, type SearchHit } from './search.api'
-import { formatRelativeTime, formatDateTime } from '@/lib/utils/format'
+import { formatRelativeTime } from '@/lib/utils/format'
 import { Link } from '@tanstack/react-router'
 import { Route } from '@/routes/_dashboard/sessions/index'
 
 export function SessionList() {
   const navigate = useNavigate()
-  const { page, pageSize, search, status, project, sort, starFirst, view } = Route.useSearch()
+  const { page, pageSize, search, status, project, sort, view } = Route.useSearch()
   const { storedPageSize, setPageSize } = usePageSizePreference()
   const hasAppliedStoredPreference = useRef(false)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
@@ -47,22 +47,20 @@ export function SessionList() {
     }
   }, [storedPageSize, pageSize, navigate])
 
-  const { data: activeSessions = [] } = useQuery(activeSessionsQuery)
-  const hasActive = activeSessions.length > 0
-  const { data: paginatedData, isLoading } = useQuery(
-    paginatedSessionListQuery({ page, pageSize, search, status, project, sort, starFirst, hasActive }),
+  const { data: paginatedData, isLoading, isFetching } = useQuery(
+    paginatedSessionListQuery({ page, pageSize, search, status, project, sort, starFirst: true }),
   )
+  const { data: activeSessions = [] } = useQuery(activeSessionsQuery)
   const { data: metadata } = useQuery(metadataQuery)
 
   // Merge active status from fast-polling query
   const mergedSessions = useMemo(() => {
     if (!paginatedData) return []
-    const activeMap = new Map(activeSessions.map((s) => [s.sessionId, s]))
-    return paginatedData.sessions.map((s) => {
-      const active = activeMap.get(s.sessionId)
-      if (!active) return s
-      return { ...s, isActive: true, sessionState: active.sessionState }
-    })
+    const activeIds = new Set(activeSessions.map((s) => `${s.provider ?? 'claude'}:${s.sessionId}`))
+    return paginatedData.sessions.map((s) => ({
+      ...s,
+      isActive: activeIds.has(`${s.provider ?? 'claude'}:${s.sessionId}`) || s.isActive,
+    }))
   }, [paginatedData, activeSessions])
 
   // Client-side filter hidden projects from dropdown
@@ -93,7 +91,7 @@ export function SessionList() {
   if (isLoading) {
     return (
       <div className="space-y-3">
-        {Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
+        {Array.from({ length: pageSize }).map((_, i) => (
           <div key={i} className="h-28 animate-pulse rounded-xl border border-gray-800 bg-gray-900/50" />
         ))}
       </div>
@@ -112,13 +110,18 @@ export function SessionList() {
         searchRef={searchInputRef}
       />
 
-      {/* Background refetch — no visual indicator */}
+      {/* Loading indicator */}
+      {isFetching && !isLoading && (
+        <div className="mt-3 h-0.5 w-full overflow-hidden rounded-full bg-gray-800">
+          <div className="h-full w-1/3 animate-pulse rounded-full bg-brand-500" style={{ animation: 'shimmer 1.2s ease-in-out infinite' }} />
+        </div>
+      )}
 
       <div className="mt-4 space-y-2">
         {mergedSessions.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-500">
             {totalCount === 0 && !search && status === 'all' && !project
-              ? 'No sessions found in ~/.claude'
+              ? 'No sessions found in ~/.claude, ~/.codex, or ~/.gemini'
               : 'No sessions match your filters'}
           </div>
         ) : view === 'grouped' ? (
@@ -177,7 +180,7 @@ function FullTextSearchResults({ query, existingIds }: { query: string; existing
     return () => { cancelled = true }
   }, [query, existingIds])
 
-  if (!loading && results.length === 0) return null
+  if (!loading && results.length === 0) null
 
   return (
     <div className="mt-6">
@@ -204,7 +207,7 @@ function FullTextSearchResults({ query, existingIds }: { query: string; existing
                   <span className="font-mono text-gray-500">{hit.sessionId.slice(0, 8)}</span>
                 </div>
                 {hit.timestamp && (
-                  <span className="text-gray-500" title={formatDateTime(hit.timestamp)}>{formatRelativeTime(hit.timestamp)}</span>
+                  <span className="text-gray-500">{formatRelativeTime(hit.timestamp)}</span>
                 )}
               </div>
               <p className="mt-1 text-sm text-gray-300">&ldquo;{hit.snippet}&rdquo;</p>

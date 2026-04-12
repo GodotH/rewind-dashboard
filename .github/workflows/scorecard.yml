@@ -8,12 +8,17 @@ on:
     - cron: '0 0 * * 2'  # Weekly on Tuesday at midnight UTC
   workflow_dispatch:
 
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions: read-all
 
 jobs:
   analysis:
     name: Scorecard analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       security-events: write
       id-token: write

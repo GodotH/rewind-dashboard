@@ -1,6 +1,6 @@
 ---
 name: investigate
-description: Investigate a URL or page using Playwright browser
+description: Investigate a URL or page using agent-browser
 user_invocable: true
 arguments:
   - name: url
@@ -10,7 +10,7 @@ arguments:
 
 # Browser Investigation
 
-You are investigating **$ARGUMENTS.url** using Playwright.
+You are investigating **$ARGUMENTS.url** using agent-browser.
 
 ## Steps
 
@@ -20,13 +20,13 @@ You are investigating **$ARGUMENTS.url** using Playwright.
 - Check if the dev server is running on :3000; if not, suggest `npm run dev`
 
 ### 2. Navigate
-- Use `mcp__playwright__browser_navigate` to open the URL
-- Take a screenshot with `mcp__playwright__browser_take_screenshot`
+- Use `agent-browser open` to open the URL
+- Take a screenshot with `agent-browser screenshot`
 
 ### 3. Inspect
-- Use `mcp__playwright__browser_snapshot` to get the accessibility tree
-- Check `mcp__playwright__browser_console_messages` for errors
-- Check `mcp__playwright__browser_network_requests` for failed requests
+- Use `agent-browser snapshot -i` to get the accessibility tree
+- Check `agent-browser console` for errors
+- Check `agent-browser network requests` for failed requests
 
 ### 4. Report
 - Summarize what you see: layout, content, errors
@@ -34,6 +34,6 @@ You are investigating **$ARGUMENTS.url** using Playwright.
 - Suggest fixes if issues are found
 
 ## Notes
-- Use Playwright MCP tools, not Bash-based browser commands
+- Use `agent-browser`, not the older browser tooling
 - Take screenshots at each significant step
-- Close the browser when done: `mcp__playwright__browser_close`
+- Close the browser when done: `agent-browser close`

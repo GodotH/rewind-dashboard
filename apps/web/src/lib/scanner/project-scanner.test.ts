@@ -9,6 +9,8 @@ vi.mock('node:fs', () => ({
 
 vi.mock('@/lib/utils/claude-path', () => ({
   getProjectsDir: vi.fn(() => '/fake/projects'),
+  getCodexSessionsDir: vi.fn(() => '/fake/codex/sessions'),
+  getGeminiTmpDir: vi.fn(() => '/fake/gemini/tmp'),
   decodeProjectDirName: vi.fn((dirName: string) =>
     dirName.replace(/^-/, '/').replace(/-/g, '/'),
   ),
@@ -30,6 +32,12 @@ function makeStat(isDir: boolean) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockReaddir.mockImplementation(async (targetPath: fs.PathLike) => {
+    if (targetPath === '/fake/codex/sessions' || targetPath === '/fake/gemini/tmp') {
+      return []
+    }
+    return []
+  })
 })
 
 describe('scanProjects', () => {

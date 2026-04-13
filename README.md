@@ -1,50 +1,54 @@
-# Rewind Dashboard
+# Rewind
 
-**Find, manage and launch your previous Claude Code sessions.**
+**Your Claude Code sessions deserve better than `~/.claude/projects/`.**
 
-A local-first dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) power users. Star sessions, rename them, organize by project, sort by activity, read full conversations, and resume any session from the browser. Everything runs locally — no data leaves your machine.
+A local dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) power users who've accumulated more sessions than they can remember. Browse, search, star, rename, and launch past sessions from a clean web UI. See what's actively running, what it cost you, and which project quietly consumed 3.2M tokens at 3am.
 
-Fork of [claude-session-dashboard](https://github.com/dlupiak/claude-session-dashboard) by [Dmytro Lupiak](https://github.com/dlupiak).
+Everything runs locally. Nothing phones home. We don't even know how to spell "telemetry."
+
+![Rewind — Sessions view](screenshots/rewind-sessions.png)
+
+---
 
 ## Features
 
-### Session Management
-- **Star sessions** — star important sessions so they always appear first
-- **Rename sessions** — give sessions meaningful names instead of auto-generated titles
-- **Sort sessions** — by latest activity, most messages, longest duration, largest size, or starred only
-- **Launch sessions** — click "Launch" to resume any session in a new terminal (Windows, macOS, Linux)
-- **Copy resume command** — copy `claude --resume <id>` to clipboard from the overflow menu
+### Sessions — your command center
 
-### Project Management
-- **Rename projects** — give projects meaningful names instead of folder-derived defaults
-- **Star projects** — starred projects surface their latest session to the top of the dashboard
-- **Hide projects** — remove noisy or old projects from all views (recoverable via Projects page)
-- **Project badges** — every session card shows a clickable blue "Project:" badge that filters by project
+| Feature | What it does |
+|---------|-------------|
+| **Star** | Pin important sessions to the top. They earned it. |
+| **Rename** | Give sessions real names. "chat-abc123" is not a personality. |
+| **Launch** | One click to resume any session in your terminal. |
+| **Active detection** | See which sessions are running right now (comforting green glow included). |
+| **Sort** | By latest, most messages, longest, largest, or starred only. |
+| **Copy resume** | `claude --resume <id>` to clipboard from the `...` menu. |
 
-### Views
-- **Sessions view** — flat list of all sessions with sorting, filtering, and search
-- **Projects view** — sessions grouped under collapsible project headers with pin/hide controls
-- **Projects page** — dedicated page for managing all projects (star, hide, view stats)
-- **Stats page** — usage analytics: token trends, model usage, cost estimates, activity heatmap
+### Search — find that one session from last Tuesday
 
-### Conversation
-- **Full chat history** — expandable conversation section on the session detail page shows all user and assistant messages with timestamps and tool call annotations
+- **`Cmd+K`** / **`Ctrl+K`** — muscle memory, we got you
+- **Full-text conversation search** — not just titles, but what was actually said
+- **Project filter** — dropdown or click a project badge on any card
 
-### Search & Navigation
-- **Cmd+K** — global keyboard shortcut to focus search
-- **Search** — filter by project name, branch, session ID, working directory, or custom session name
-- **Full-text conversation search** — searches inside all messages when query is 3+ characters, shows matching snippets with timestamps
-- **Active session detection** — detects running sessions even when idle (1-hour threshold)
+### Projects — tame the chaos
 
-## Getting Started
+- **Rename, star, or hide** projects from the dedicated Projects page
+- **Project badges** — clickable labels on every session card
+- **Starred project surfacing** — latest session from your starred projects floats to the top of the dashboard
 
-### Prerequisites
+### Dashboard & Stats — know your usage
 
-- **Node.js** v18 or later
-- **Claude Code** installed — the dashboard reads session data from `~/.claude/projects/`
-- At least one Claude Code session run (so there's data to display)
+- **At-a-glance metrics** — sessions, messages, tokens, estimated cost
+- **Activity heatmap** — like GitHub's contribution graph, but for your AI conversations
+- **Token usage over time** — daily or weekly, broken down by model
+- **Hourly distribution** — discover that you apparently code at 2am more than you thought
 
-### Install and Run
+### Conversation Viewer
+
+Full chat history on the session detail page — every message, tool call, and timestamp. For when you need to figure out what you asked Claude to do before your morning coffee.
+
+---
+
+## Quick Start
 
 ```bash
 git clone https://github.com/GodotH/rewind-dashboard.git
@@ -53,21 +57,45 @@ npm install
 npx vite --port 3030
 ```
 
-Open **http://localhost:3030** in your browser.
+Open **http://localhost:3030**. That's it.
 
-### First Steps
+### Prerequisites
 
-1. **Browse** — your sessions appear on the Dashboard, sorted by most recent
-2. **Star** — click the ★ icon to pin a session to the top
-3. **Rename** — click `...` on a card, then "Rename"
-4. **Sort** — use the dropdown (top right) to sort by activity, duration, or size
-5. **Switch views** — toggle between "Sessions" (flat) and "Projects" (grouped)
-6. **Launch** — click the green "Launch" button to resume a session in your terminal
-7. **Manage projects** — click "Projects" in the sidebar to star, hide, or browse project stats
+- **Node.js** v18+
+- **Claude Code** installed — Rewind reads session data from `~/.claude/projects/`
+- At least one Claude Code session (go talk to Claude, we'll wait)
+
+### Your first 30 seconds
+
+1. **Browse** — sessions appear on the Dashboard, sorted by most recent
+2. **Star** — click ★ to pin a session to the top
+3. **Rename** — click `...` → Rename (you'll thank yourself later)
+4. **Search** — `Cmd+K` to find anything across all sessions
+5. **Launch** — green button resumes any session in your terminal
+6. **Projects** — sidebar link to organize, star, and hide projects
+
+---
+
+## How It Works
+
+Claude Code stores sessions as JSONL files under `~/.claude/projects/`. Rewind scans them on a timer and presents a proper UI:
+
+- **Sessions** — parsed from JSONL: timestamps, messages, tokens, tool calls, models
+- **Active detection** — dual-strategy: lock directory check (15min threshold) + file modification time (2min) for newer Claude Code versions
+- **Metadata** — your pins, renames, and hidden projects live in `~/.claude-dashboard/session-metadata.json`
+- **Launch** — cross-platform session resume:
+  - **Windows**: `.bat` script via `cmd.exe /c start`
+  - **macOS**: `osascript` with Terminal.app
+  - **Linux**: `gnome-terminal` / `konsole` / `xterm`
+
+Zero network requests. Your sessions stay on your machine.
+
+---
 
 ## Auto-Start on Login
 
-### Windows
+<details>
+<summary><b>Windows</b> — scheduled task</summary>
 
 Create `start-rewind.vbs`:
 
@@ -83,8 +111,10 @@ $action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument '"C:\path\to\
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 Register-ScheduledTask -TaskName "RewindDashboard" -Action $action -Trigger $trigger
 ```
+</details>
 
-### macOS
+<details>
+<summary><b>macOS</b> — launch agent</summary>
 
 ```bash
 cat > ~/Library/LaunchAgents/com.rewind-dashboard.plist << 'EOF'
@@ -103,8 +133,10 @@ cat > ~/Library/LaunchAgents/com.rewind-dashboard.plist << 'EOF'
 EOF
 launchctl load ~/Library/LaunchAgents/com.rewind-dashboard.plist
 ```
+</details>
 
-### Linux
+<details>
+<summary><b>Linux</b> — systemd user service</summary>
 
 ```bash
 mkdir -p ~/.config/systemd/user
@@ -122,68 +154,23 @@ WantedBy=default.target
 EOF
 systemctl --user enable --now rewind-dashboard
 ```
+</details>
 
-## iOS / iPadOS (Experimental)
+---
 
-> **Not tested.** These are theoretical instructions.
+## Mobile Access (Experimental)
 
-Rewind Dashboard is a web app — it runs in any browser. To access from an iPhone or iPad:
+Rewind is a web app — any browser works. Start with `npx vite --port 3030 --host 0.0.0.0`, then open `http://<your-ip>:3030` from your phone. Add to Home Screen for an app-like experience.
 
-**Local network**: Start with `npx vite --port 3030 --host 0.0.0.0`, then open `http://<your-ip>:3030` in Safari. Add to Home Screen for an app-like experience.
+For remote access: [Tailscale](https://tailscale.com) or [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) work great.
 
-**Remote access**: Use [Tailscale](https://tailscale.com) or [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) (`cloudflared tunnel --url http://localhost:3030`).
+> The Launch button won't work from mobile (no terminal). Everything else does.
 
-**Limitations**: The Launch button won't work (no terminal on iOS). The dashboard must run on the machine where `~/.claude/` exists.
-
-## How It Works
-
-Claude Code stores session data as JSONL files in `~/.claude/projects/`. Rewind scans these files:
-
-- **Sessions** — parsed from JSONL (timestamps, messages, tokens, tool calls, models)
-- **Active detection** — lock directory exists + JSONL modified within 1 hour
-- **Metadata** — pins, renames, and hidden projects stored in `~/.claude-dashboard/session-metadata.json`
-- **Launcher** — cross-platform session resume:
-  - **Windows**: `.bat` script via `cmd.exe /c start`
-  - **macOS**: `osascript` with Terminal.app (full shell environment)
-  - **Linux**: `.sh` script (sources `~/.bashrc`) in gnome-terminal/konsole/xterm
-
-Nothing is sent to any server. All data stays local.
-
-## Metadata
-
-User metadata is stored in a single JSON file at `~/.claude-dashboard/session-metadata.json`:
-
-```json
-{
-  "version": 1,
-  "sessions": {
-    "<sessionId>": { "pinned": true, "customName": "Auth refactor" }
-  },
-  "projects": {
-    "<projectPath>": { "pinned": true, "hidden": false, "customName": "My Project" }
-  }
-}
-```
-
-Sparse storage — only non-default entries are written. Atomic writes (`.tmp` + rename) prevent corruption.
-
-## Sort Order
-
-In the default "Latest" sort mode, sessions are ordered:
-
-1. **Starred sessions** — explicitly starred, always first
-2. **Starred project representative** — one latest session per starred project
-3. **Recency** — everything else by last activity
-
-Other sort modes (Most Active, Longest, Largest) sort literally without star boosting.
+---
 
 ## Tech Stack
 
-- [TanStack Start](https://tanstack.com/start) + [React](https://react.dev)
-- [TanStack Router](https://tanstack.com/router) + [React Query](https://tanstack.com/query)
-- [Tailwind CSS v4](https://tailwindcss.com)
-- [Vite](https://vite.dev)
-- [Zod](https://zod.dev)
+[TanStack Start](https://tanstack.com/start) + [React](https://react.dev) · [TanStack Router](https://tanstack.com/router) + [React Query](https://tanstack.com/query) · [Tailwind CSS v4](https://tailwindcss.com) · [Vite](https://vite.dev) · [Zod](https://zod.dev)
 
 ## Development
 
@@ -191,14 +178,16 @@ Other sort modes (Most Active, Longest, Largest) sort literally without star boo
 cd apps/web
 npm install
 npx vite --port 3030      # dev server
-npx vitest                 # run tests
+npx vitest                 # tests
 ```
 
 > **Note**: Production build has a known TanStack Start issue on Node v24. Use dev mode (`npx vite`).
 
+---
+
 ## Credits
 
-Built on [claude-session-dashboard](https://github.com/dlupiak/claude-session-dashboard) by [Dmytro Lupiak](https://github.com/dlupiak) — a read-only analytics dashboard for Claude Code sessions. Rewind Dashboard adds session management, conversation viewing, sorting, project organization, and cross-platform session launching.
+Built on [claude-session-dashboard](https://github.com/dlupiak/claude-session-dashboard) by [Dmytro Lupiak](https://github.com/dlupiak) — a read-only analytics viewer for Claude Code. Rewind adds session management, conversation viewing, project organization, active session detection, and cross-platform session launching.
 
 ## License
 

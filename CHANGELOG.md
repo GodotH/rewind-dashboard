@@ -1,15 +1,40 @@
 # Changelog
 
-## Unreleased
+## v1.03
+
+### Added
+- **Dashboard overhaul** — 4-tab navigation (Dashboard, Sessions, Projects, Settings), unified stat box grid
+- **Active session detection** — dual-strategy: lock directory (15min) + mtime-only (2min) for newer Claude Code versions
+- **Conversation viewer** — full chat history on session detail page
+- **Full-text conversation search** — searches inside all messages, shows matching snippets
+- **Project badges** — clickable project labels on every session card
+- **Launch confirmation popup** — shows session details before resuming
+- **Matrix green theme** — emerald accents, loading animation, sidebar redesign
 
 ### Fixed
+- **Path decoding** — Windows hyphens preserved, macOS homedir-matching heuristic for lossy encoding
+- **Token counting** — fixed double-counting for sessions with < 30 lines (head/tail overlap)
+- **Session launch** — reads `cwd` from JSONL data instead of lossy decoded path
+- **Stream cleanup** — proper `try/finally` on readline streams to prevent resource leaks
+- **Security** — UUID validation on sessionId, path traversal checks on cwd, removed `--dangerously-skip-permissions`
 
-- **Path decoding**: Windows project directory names with literal hyphens (e.g. `fiscal-26`) are now preserved instead of being split into bogus path segments (`fiscal/26`). The decoder uses `--` as the reliable separator boundary when present, keeping single `-` as literal hyphens.
-- **Session launch**: `LaunchButton` now reads `cwd` from the JSONL session data instead of using the lossy decoded project path. The launch endpoint reads the first 4KB (multiple lines) instead of just the first line to find the `cwd` field.
-- **Stream cleanup**: `search.api.ts` and `session-parser.ts` now use `try/finally` blocks to properly close readline streams and destroy file handles, preventing resource leaks on early returns.
+## v1.02
 
-### Migration
+### Added
+- **Renamable projects** — give projects meaningful names from the Projects page
+- **Full-text search** — 3+ character queries search inside conversations
+- **Search timestamps** — matching snippets show message timestamps
+- **Collapsible agent sections** — tool call details collapse for readability
 
-After upgrading, pinned/hidden/renamed project settings in `~/.claude-dashboard/session-metadata.json` may use old path keys. These won't match the new decoder output. Either:
-1. Delete the file to reset (you'll lose pins/hides/renames)
-2. Run a key migration to remap old paths to new paths
+## v1.01
+
+### Added
+- **Sort modes** — latest, most messages, longest, largest, starred only
+- **Grouped project view** — sessions under collapsible project headers
+- **Projects route** — dedicated page for managing projects
+- **Cross-platform launcher** — Windows, macOS (Terminal.app), Linux (gnome-terminal/konsole/xterm)
+
+## v1.00
+
+### Added
+- Initial release — fork of claude-session-dashboard with session management, starring, renaming, and launching

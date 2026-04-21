@@ -62,6 +62,16 @@ Read-only, local-only observability dashboard for Claude Code sessions. Scans `~
 - **Auto-start**: Windows scheduled task `StartRewindDashboard` runs at logon
 - **Startup scripts**: `C:\Users\godot\_work\start-rewind.cmd`, `C:\Users\godot\_work\start-rewind-silent.vbs`
 
+### Session Launch Flow (`apps/web/vite.config.ts`)
+
+The Launch button POSTs to `/api/launch-session`, handled by the `launchSessionPlugin` Vite middleware. It validates the UUID + cwd, reads the session's recorded `cwd` from `~/.claude/projects/**/<sessionId>.jsonl`, then spawns a **visible** terminal running `claude --resume <id> --dangerously-skip-permissions`. The terminal must be visible because the user interacts with Claude inside it.
+
+- **Windows**: writes a `.bat` to `%TEMP%`, spawns via `cmd.exe /c start "<title>" <batfile>`. The window title is `Rewind Session <id-prefix>` so users can identify it. The .bat self-deletes on exit via `(goto) 2>nul & del "%~f0"` (reliable even if Vite has died); a 60s `setTimeout` is a fallback.
+- **macOS**: `osascript` launches Terminal.app with `do script` (inherits shell environment).
+- **Linux**: writes a `.sh` that sources `~/.bashrc`/`~/.profile`, opens it in the first available terminal emulator (`x-terminal-emulator`, `gnome-terminal`, `konsole`, `xfce4-terminal`, `xterm`).
+
+Security: the UUID regex and cwd sanitization (absolute path, no traversal, no shell metacharacters) gate all spawns — do not weaken.
+
 ## Tech Stack & Commands
 
 TanStack Start (SSR on Vite), TanStack Router (file-based), TanStack React Query, Tailwind CSS v4, Recharts, Zod.

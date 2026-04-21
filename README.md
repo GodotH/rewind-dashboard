@@ -84,7 +84,7 @@ Claude Code stores sessions as JSONL files under `~/.claude/projects/`. Rewind s
 - **Active detection** — dual-strategy: lock directory check (15min threshold) + file modification time (2min) for newer Claude Code versions
 - **Metadata** — your pins, renames, and hidden projects live in `~/.claude-dashboard/session-metadata.json`
 - **Launch** — cross-platform session resume:
-  - **Windows**: `.bat` script via `cmd.exe /c start`
+  - **Windows**: titled `.bat` script via `cmd.exe /c start "Rewind Session <id>"` (self-deletes on exit)
   - **macOS**: `osascript` with Terminal.app
   - **Linux**: `gnome-terminal` / `konsole` / `xterm`
 
@@ -165,6 +165,22 @@ Rewind is a web app — any browser works. Start with `npx vite --port 3030 --ho
 For remote access: [Tailscale](https://tailscale.com) or [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/) work great.
 
 > The Launch button won't work from mobile (no terminal). Everything else does.
+
+## Troubleshooting
+
+### "What is this terminal window?"
+
+When you click **Launch**, Rewind opens a new terminal window running `claude --resume`. On Windows, this window is titled **`Rewind Session <id-prefix>`** (where `<id-prefix>` is the first 8 characters of the session UUID) so you can confirm it came from Rewind. You can close these windows at any time — closing the terminal ends that Claude session but does not affect the dashboard or other sessions.
+
+### Orphan terminals from older versions
+
+Versions of Rewind prior to this fix could occasionally leave unlabeled `cmd.exe` windows behind after a Claude session ended or the Vite dev server was killed. If you see unfamiliar console windows on your desktop with no obvious title, they are almost certainly harmless orphans from a previous session — just close them, or kill them via PowerShell:
+
+```powershell
+Get-Process cmd | Where-Object { $_.MainWindowTitle -eq '' } | Stop-Process
+```
+
+New launches (with the titled-window fix) no longer produce these orphans, and the temporary `.bat` files they spawn self-delete when the terminal exits.
 
 ---
 

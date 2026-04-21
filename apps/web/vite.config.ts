@@ -78,9 +78,29 @@ function launchSessionPlugin(): Plugin {
             let child
             if (isWin) {
               const safeCwd = sessionCwd.replace(/\//g, '\\')
-              const batPath = join(tmpdir(), `launch-session-${sessionId.slice(0,8)}.bat`)
-              writeFileSync(batPath, ['@echo off', `cd /d "${safeCwd}"`, resumeCmd, 'pause', ''].join('\r\n'))
-              child = spawn('cmd.exe', ['/c', 'start', '', batPath], { detached: true, stdio: 'ignore' })
+              const idPrefix = sessionId.slice(0, 8)
+              // Window title makes the spawned terminal auditable — users can see
+              // it belongs to Rewind instead of mistaking it for malware.
+              const windowTitle = `Rewind Session ${idPrefix}`
+              const batPath = join(tmpdir(), `launch-session-${idPrefix}.bat`)
+              // The .bat self-deletes on exit via `(goto) 2>nul & del "%~f0"`, which
+              // works even if the Vite dev server has already shut down (the 60s
+              // setTimeout below is a belt-and-suspenders fallback for edge cases
+              // where the user kills the window before the claude process starts).
+              const batLines = [
+                '@echo off',
+                `title ${windowTitle}`,
+                `cd /d "${safeCwd}"`,
+                resumeCmd,
+                'pause',
+                '(goto) 2>nul & del "%~f0"',
+                '',
+              ]
+              writeFileSync(batPath, batLines.join('\r\n'))
+              // First quoted argument to `start` is the window title — this ensures
+              // the terminal is labeled even during the brief moment before the
+              // .bat's own `title` command runs.
+              child = spawn('cmd.exe', ['/c', 'start', windowTitle, batPath], { detached: true, stdio: 'ignore' })
               child.unref()
               setTimeout(() => { try { unlinkSync(batPath) } catch {} }, 60000)
             } else if (platform() === 'darwin') {

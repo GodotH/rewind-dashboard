@@ -135,6 +135,22 @@ Rewind Dashboard is a web app — it runs in any browser. To access from an iPho
 
 **Limitations**: The Launch button won't work (no terminal on iOS). The dashboard must run on the machine where `~/.claude/` exists.
 
+## Troubleshooting
+
+### "What is this terminal window?"
+
+When you click **Launch**, Rewind opens a new terminal window running `claude --resume`. On Windows, this window is titled **`Rewind Session <id-prefix>`** (where `<id-prefix>` is the first 8 characters of the session UUID) so you can confirm it came from Rewind. You can close these windows at any time — closing the terminal ends that Claude session but does not affect the dashboard or other sessions.
+
+### Orphan terminals from older versions
+
+Versions of Rewind prior to this fix could occasionally leave unlabeled `cmd.exe` windows behind after a Claude session ended or the Vite dev server was killed. If you see unfamiliar console windows on your desktop with no obvious title, they are almost certainly harmless orphans from a previous session — just close them, or kill them via PowerShell:
+
+```powershell
+Get-Process cmd | Where-Object { $_.MainWindowTitle -eq '' } | Stop-Process
+```
+
+New launches (with the titled-window fix) no longer produce these orphans, and the temporary `.bat` files they spawn self-delete when the terminal exits.
+
 ## How It Works
 
 Claude Code stores session data as JSONL files in `~/.claude/projects/`. Rewind scans these files:
@@ -143,7 +159,7 @@ Claude Code stores session data as JSONL files in `~/.claude/projects/`. Rewind 
 - **Active detection** — lock directory exists + JSONL modified within 1 hour
 - **Metadata** — pins, renames, and hidden projects stored in `~/.claude-dashboard/session-metadata.json`
 - **Launcher** — cross-platform session resume:
-  - **Windows**: `.bat` script via `cmd.exe /c start`
+  - **Windows**: `.bat` script via `cmd.exe /c start "Rewind Session <id>"` (self-deleting, titled window)
   - **macOS**: `osascript` with Terminal.app (full shell environment)
   - **Linux**: `.sh` script (sources `~/.bashrc`) in gnome-terminal/konsole/xterm
 

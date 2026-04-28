@@ -38,6 +38,15 @@ const NAV_ITEMS = [
     ),
   },
   {
+    to: '/screen-time',
+    label: 'Screen Time',
+    icon: (
+      <svg className="h-4 w-4" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M2 3a1 1 0 011-1h10a1 1 0 011 1v7a1 1 0 01-1 1H3a1 1 0 01-1-1V3zm3 10h6v1H5v-1zm-1-1h8l.5 1h-9l.5-1z" />
+      </svg>
+    ),
+  },
+  {
     to: '/settings',
     label: 'Settings',
     icon: (

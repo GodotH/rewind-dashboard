@@ -1,5 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import * as path from 'node:path'
+import { mergeLiveStates } from '@/features/sessions/active-merge'
+import { deriveProjectName } from '../utils/project-identity'
 import type { SessionSummary } from '../parsers/types'
+import type { LiveSession, LiveSessionsResult } from './live-sessions'
 import type { ProjectInfo } from './project-scanner'
 
 // Mock all external dependencies inline (vi.mock is hoisted)
@@ -9,7 +13,7 @@ vi.mock('./project-scanner', () => ({
 
 vi.mock('../utils/claude-path', () => ({
   getClaudeDir: vi.fn(() => '/mock/claude'),
-  getProjectsDir: vi.fn(() => '/mock/projects'),
+  getProjectsDir: vi.fn(() => '/mock/claude/projects'),
   extractSessionId: vi.fn((filename: string) => filename.replace(/\.jsonl$/, '')),
 }))
 
@@ -17,15 +21,33 @@ vi.mock('../parsers/session-parser', () => ({
   parseSummary: vi.fn(),
 }))
 
-vi.mock('./active-detector', () => ({
-  isSessionActive: vi.fn(),
+vi.mock('./live-sessions', () => ({
+  readLiveSessions: vi.fn(),
+}))
+
+vi.mock('../cache/disk-cache', () => ({
+  getCacheDir: vi.fn(() => '/mock/dashboard-cache'),
 }))
 
 vi.mock('node:fs', () => ({
   promises: {
     stat: vi.fn(),
   },
+  readdirSync: vi.fn(() => []),
+  existsSync: vi.fn(() => true),
+  statSync: vi.fn(() => {
+    throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+  }),
+  readFileSync: vi.fn(() => {
+    throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+  }),
+  writeFileSync: vi.fn(),
+  renameSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  unlinkSync: vi.fn(),
 }))
+
+const NOW = 1_700_000_000_000
 
 // Helper to build a SessionSummary fixture
 function makeSummary(overrides: Partial<SessionSummary> = {}): SessionSummary {
@@ -34,6 +56,8 @@ function makeSummary(overrides: Partial<SessionSummary> = {}): SessionSummary {
     projectDir: '-Users-user-myproject',
     projectPath: '/Users/user/myproject',
     projectName: 'myproject',
+    realPath: null,
+    pathExists: true,
     branch: 'main',
     cwd: '/Users/user/myproject',
     startedAt: '2026-01-01T10:00:00.000Z',
@@ -64,11 +88,31 @@ function makeProject(overrides: Partial<ProjectInfo> = {}): ProjectInfo {
   }
 }
 
+function makeLiveRecord(sessionId: string, status: string): LiveSession {
+  return { sessionId, pid: 1234, status, updatedAt: NOW, cwd: '/Users/user/myproject' }
+}
+
+/** A registry snapshot: `{ sessionId: status }` for every live process. */
+function registry(records: Record<string, string> = {}, available = true): LiveSessionsResult {
+  return {
+    available,
+    sessions: new Map(
+      Object.entries(records).map(([id, status]) => [id, makeLiveRecord(id, status)]),
+    ),
+  }
+}
+
 describe('session-scanner', () => {
   // We need fresh module imports on each test to reset the module-level summaryCache
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   async function importScanner() {
@@ -76,17 +120,22 @@ describe('session-scanner', () => {
     const scanner = await import('./session-scanner')
     const { scanProjects } = await import('./project-scanner')
     const { parseSummary } = await import('../parsers/session-parser')
-    const { isSessionActive } = await import('./active-detector')
+    const { readLiveSessions } = await import('./live-sessions')
     const fs = await import('node:fs')
+    const mockReadLiveSessions = readLiveSessions as ReturnType<typeof vi.fn>
+    // Default: registry readable, no live process.
+    mockReadLiveSessions.mockReturnValue(registry())
     return {
       scanAllSessions: scanner.scanAllSessions,
       scanAllSessionsWithPaths: scanner.scanAllSessionsWithPaths,
-      getActiveSessions: scanner.getActiveSessions,
+      getLiveSessionStates: scanner.getLiveSessionStates,
       clearSummaryCache: scanner.clearSummaryCache,
       mockScanProjects: scanProjects as ReturnType<typeof vi.fn>,
       mockParseSummary: parseSummary as ReturnType<typeof vi.fn>,
-      mockIsSessionActive: isSessionActive as ReturnType<typeof vi.fn>,
+      mockReadLiveSessions,
       mockStat: fs.promises.stat as ReturnType<typeof vi.fn>,
+      mockStatSync: fs.statSync as unknown as ReturnType<typeof vi.fn>,
+      fs,
     }
   }
 
@@ -112,19 +161,11 @@ describe('session-scanner', () => {
     })
 
     it('returns a session summary for a single project and single session', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
 
-      const summary = makeSummary()
       mockScanProjects.mockResolvedValue([makeProject()])
       mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
-      mockParseSummary.mockResolvedValue(summary)
-      mockIsSessionActive.mockResolvedValue(false)
+      mockParseSummary.mockResolvedValue(makeSummary())
 
       const result = await scanAllSessions()
 
@@ -139,13 +180,7 @@ describe('session-scanner', () => {
     })
 
     it('returns sessions from multiple projects sorted newest-first by lastActiveAt', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
 
       const olderSummary = makeSummary({
         sessionId: 'session-old',
@@ -174,7 +209,6 @@ describe('session-scanner', () => {
       mockParseSummary
         .mockResolvedValueOnce(olderSummary)
         .mockResolvedValueOnce(newerSummary)
-      mockIsSessionActive.mockResolvedValue(false)
 
       const result = await scanAllSessions()
 
@@ -184,13 +218,7 @@ describe('session-scanner', () => {
     })
 
     it('returns multiple sessions from a single project sorted newest-first', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
 
       const session1 = makeSummary({
         sessionId: 'session-1',
@@ -210,7 +238,6 @@ describe('session-scanner', () => {
       mockParseSummary
         .mockResolvedValueOnce(session1)
         .mockResolvedValueOnce(session2)
-      mockIsSessionActive.mockResolvedValue(false)
 
       const result = await scanAllSessions()
 
@@ -220,11 +247,7 @@ describe('session-scanner', () => {
     })
 
     it('skips sessions where fs.stat resolves null', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockStat,
-      } = await importScanner()
+      const { scanAllSessions, mockScanProjects, mockStat } = await importScanner()
 
       mockScanProjects.mockResolvedValue([makeProject()])
       mockStat.mockResolvedValue(null)
@@ -235,11 +258,7 @@ describe('session-scanner', () => {
     })
 
     it('skips sessions where fs.stat rejects', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockStat,
-      } = await importScanner()
+      const { scanAllSessions, mockScanProjects, mockStat } = await importScanner()
 
       mockScanProjects.mockResolvedValue([makeProject()])
       mockStat.mockRejectedValue(new Error('ENOENT'))
@@ -250,12 +269,7 @@ describe('session-scanner', () => {
     })
 
     it('skips sessions where parseSummary returns null', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockStat,
-      } = await importScanner()
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
 
       mockScanProjects.mockResolvedValue([makeProject()])
       mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
@@ -267,37 +281,30 @@ describe('session-scanner', () => {
     })
 
     it('excludes content-less stub sessions (0 messages, inactive)', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
 
       mockScanProjects.mockResolvedValue([makeProject()])
       mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
       mockParseSummary.mockResolvedValue(makeSummary({ messageCount: 0 }))
-      mockIsSessionActive.mockResolvedValue(false)
 
       const result = await scanAllSessions()
 
       expect(result).toEqual([])
     })
 
-    it('keeps a 0-message session when it is currently active', async () => {
+    it('keeps a 0-message session when it is currently working', async () => {
       const {
         scanAllSessions,
         mockScanProjects,
         mockParseSummary,
-        mockIsSessionActive,
+        mockReadLiveSessions,
         mockStat,
       } = await importScanner()
 
       mockScanProjects.mockResolvedValue([makeProject()])
-      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockStat.mockResolvedValue({ mtimeMs: NOW, size: 1024 })
       mockParseSummary.mockResolvedValue(makeSummary({ messageCount: 0 }))
-      mockIsSessionActive.mockResolvedValue(true)
+      mockReadLiveSessions.mockReturnValue(registry({ 'session-abc': 'busy' }))
 
       const result = await scanAllSessions()
 
@@ -306,19 +313,11 @@ describe('session-scanner', () => {
     })
 
     it('uses in-memory cache on second call when mtime is unchanged', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
 
-      const summary = makeSummary()
       mockScanProjects.mockResolvedValue([makeProject()])
       mockStat.mockResolvedValue({ mtimeMs: 5000, size: 1024 })
-      mockParseSummary.mockResolvedValue(summary)
-      mockIsSessionActive.mockResolvedValue(false)
+      mockParseSummary.mockResolvedValue(makeSummary())
 
       // First call — should parse
       await scanAllSessions()
@@ -329,49 +328,15 @@ describe('session-scanner', () => {
       expect(mockParseSummary).toHaveBeenCalledTimes(1)
     })
 
-    it('refreshes active status from detector even on cache hit', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
-
-      const summary = makeSummary({ isActive: false })
-      mockScanProjects.mockResolvedValue([makeProject()])
-      mockStat.mockResolvedValue({ mtimeMs: 5000, size: 1024 })
-      mockParseSummary.mockResolvedValue(summary)
-      // First call: not active. Second call: active
-      mockIsSessionActive.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
-
-      const first = await scanAllSessions()
-      const second = await scanAllSessions()
-
-      expect(first[0].isActive).toBe(false)
-      expect(second[0].isActive).toBe(true)
-      // isSessionActive called twice (once per scan), parseSummary only once
-      expect(mockIsSessionActive).toHaveBeenCalledTimes(2)
-      expect(mockParseSummary).toHaveBeenCalledTimes(1)
-    })
-
     it('re-parses when mtime changes (stale cache)', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
 
-      const summary = makeSummary()
       mockScanProjects.mockResolvedValue([makeProject()])
       // First call: mtime=1000, second call: mtime=2000 (file changed)
       mockStat
         .mockResolvedValueOnce({ mtimeMs: 1000, size: 1024 })
         .mockResolvedValueOnce({ mtimeMs: 2000, size: 2048 })
-      mockParseSummary.mockResolvedValue(summary)
-      mockIsSessionActive.mockResolvedValue(false)
+      mockParseSummary.mockResolvedValue(makeSummary())
 
       await scanAllSessions()
       await scanAllSessions()
@@ -381,21 +346,439 @@ describe('session-scanner', () => {
     })
   })
 
-  describe('in-flight scan lock', () => {
-    it('coalesces concurrent callers onto one scan (scanProjects runs once)', async () => {
+  describe('liveness from the process registry', () => {
+    async function scanOnce(
+      live: LiveSessionsResult,
+      mtimeMs: number,
+      summary: Partial<SessionSummary> = {},
+    ) {
       const {
         scanAllSessions,
         mockScanProjects,
         mockParseSummary,
-        mockIsSessionActive,
+        mockReadLiveSessions,
         mockStat,
       } = await importScanner()
 
-      const summary = makeSummary()
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary(summary))
+      mockReadLiveSessions.mockReturnValue(live)
+
+      return scanAllSessions()
+    }
+
+    it('REGRESSION: a brand-new mtime does NOT make a session absent from the registry active', async () => {
+      // Fails against the old mtime heuristic: `claude --resume` on a months-old
+      // session touched the JSONL and pinned it to the top as "working" forever.
+      const result = await scanOnce(registry(), NOW)
+
+      expect(result[0].isActive).toBe(false)
+      expect(result[0].sessionState).toBe('inactive')
+    })
+
+    it('marks a live idle process as waiting, never working, however fresh the file is', async () => {
+      const result = await scanOnce(registry({ 'session-abc': 'idle' }), NOW)
+
+      expect(result[0].sessionState).toBe('waiting')
+      // THE INVARIANT: waiting is not active. isActive gates the hidden-project
+      // bypass, the stub readmission, the sort pin and the 5s poll.
+      expect(result[0].isActive).toBe(false)
+    })
+
+    it('marks a live busy process with a recent file as working', async () => {
+      const result = await scanOnce(registry({ 'session-abc': 'busy' }), NOW - 60_000)
+
+      expect(result[0].sessionState).toBe('working')
+      expect(result[0].isActive).toBe(true)
+    })
+
+    it('demotes a busy record whose file has not moved in 6 months', async () => {
+      const sixMonths = 180 * 24 * 60 * 60 * 1000
+      const result = await scanOnce(registry({ 'session-abc': 'busy' }), NOW - sixMonths)
+
+      expect(result[0].sessionState).toBe('waiting')
+      expect(result[0].isActive).toBe(false)
+    })
+
+    it('does NOT readmit a content-less stub for a waiting session', async () => {
+      const result = await scanOnce(registry({ 'session-abc': 'idle' }), NOW, { messageCount: 0 })
+
+      // Regression guard for commit 18b8b18: only `working` readmits a stub.
+      expect(result).toEqual([])
+    })
+
+    it('reads the registry exactly once per scan, not once per session', async () => {
+      const {
+        scanAllSessions,
+        mockScanProjects,
+        mockParseSummary,
+        mockReadLiveSessions,
+        mockStat,
+      } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([
+        makeProject({ sessionFiles: ['a.jsonl', 'b.jsonl', 'c.jsonl'] }),
+      ])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockImplementation(async (_p, id: string) => makeSummary({ sessionId: id }))
+
+      await scanAllSessions()
+
+      expect(mockReadLiveSessions).toHaveBeenCalledTimes(1)
+    })
+
+    it('stats each session file exactly once per scan (no double-stat)', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([
+        makeProject({ sessionFiles: ['a.jsonl', 'b.jsonl'] }),
+      ])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockImplementation(async (_p, id: string) => makeSummary({ sessionId: id }))
+
+      await scanAllSessions()
+
+      // The detector used to re-stat the exact file the scanner just stat'd.
+      expect(mockStat).toHaveBeenCalledTimes(2)
+      expect(mockStat).toHaveBeenCalledWith(path.join('/mock/claude/projects', '-Users-user-myproject', 'a.jsonl'))
+      expect(mockStat).toHaveBeenCalledWith(path.join('/mock/claude/projects', '-Users-user-myproject', 'b.jsonl'))
+      // In particular the persistent subagents dir is never consulted (#29).
+      expect(mockStat).not.toHaveBeenCalledWith(path.join('/mock/claude/projects', '-Users-user-myproject', 'a'))
+    })
+
+    it('recomputes isActive/sessionState on a cache HIT (no SUMMARY_CACHE_VERSION bump needed)', async () => {
+      const {
+        scanAllSessions,
+        mockScanProjects,
+        mockParseSummary,
+        mockReadLiveSessions,
+        mockStat,
+      } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: NOW, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary())
+
+      mockReadLiveSessions.mockReturnValue(registry({ 'session-abc': 'busy' }))
+      const first = await scanAllSessions()
+
+      mockReadLiveSessions.mockReturnValue(registry({ 'session-abc': 'idle' }))
+      const second = await scanAllSessions()
+
+      mockReadLiveSessions.mockReturnValue(registry())
+      const third = await scanAllSessions()
+
+      expect(mockParseSummary).toHaveBeenCalledTimes(1) // cache hits after the first
+      expect([first[0].sessionState, second[0].sessionState, third[0].sessionState]).toEqual([
+        'working',
+        'waiting',
+        'inactive',
+      ])
+      expect([first[0].isActive, second[0].isActive, third[0].isActive]).toEqual([true, false, false])
+    })
+
+    describe('registry unavailable (legacy mtime fallback)', () => {
+      it('keeps the 120s behaviour on the live side of the boundary', async () => {
+        const result = await scanOnce(registry({}, false), NOW - 120_000)
+
+        expect(result[0].sessionState).toBe('working')
+        expect(result[0].isActive).toBe(true)
+      })
+
+      it('keeps the 120s behaviour on the stale side of the boundary', async () => {
+        const result = await scanOnce(registry({}, false), NOW - 120_001)
+
+        expect(result[0].sessionState).toBe('inactive')
+        expect(result[0].isActive).toBe(false)
+      })
+
+      it('still never stats the subagents dir when falling back (#29)', async () => {
+        const {
+          scanAllSessions,
+          mockScanProjects,
+          mockParseSummary,
+          mockReadLiveSessions,
+          mockStat,
+        } = await importScanner()
+
+        mockScanProjects.mockResolvedValue([makeProject()])
+        mockStat.mockResolvedValue({ mtimeMs: NOW - 600_000, size: 1024 })
+        mockParseSummary.mockResolvedValue(makeSummary())
+        mockReadLiveSessions.mockReturnValue(registry({}, false))
+
+        const result = await scanAllSessions()
+
+        expect(result[0].isActive).toBe(false)
+        expect(mockStat).toHaveBeenCalledTimes(1)
+        expect(mockStat).toHaveBeenCalledWith(
+          path.join('/mock/claude/projects', '-Users-user-myproject', 'session-abc.jsonl'),
+        )
+      })
+    })
+  })
+
+  describe('read-only guarantee', () => {
+    it('never writes anything under the claude dir during a scan or a liveness poll', async () => {
+      const {
+        scanAllSessions,
+        getLiveSessionStates,
+        mockScanProjects,
+        mockParseSummary,
+        mockReadLiveSessions,
+        mockStat,
+        fs,
+      } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: NOW, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary())
+      mockReadLiveSessions.mockReturnValue(registry({ 'session-abc': 'busy' }))
+
+      await scanAllSessions()
+      getLiveSessionStates()
+
+      const writeApis = [fs.writeFileSync, fs.renameSync, fs.mkdirSync, fs.unlinkSync] as unknown as ReturnType<typeof vi.fn>[]
+      const targets = writeApis.flatMap((api) => api.mock.calls.map((args) => String(args[0])))
+
+      expect(targets.length).toBeGreaterThan(0) // the dashboard's own cache IS written
+      for (const target of targets) {
+        expect(target.startsWith('/mock/claude')).toBe(false)
+      }
+    })
+  })
+
+  describe('summary cache persistence (only write when something changed)', () => {
+    const SUMMARY_CACHE_PATH = path.join('/mock/dashboard-cache', 'session-summaries.json')
+
+    function persistCount(fs: typeof import('node:fs')): number {
+      const writeFileSync = fs.writeFileSync as unknown as ReturnType<typeof vi.fn>
+      return writeFileSync.mock.calls.filter((args) => String(args[0]).startsWith(SUMMARY_CACHE_PATH)).length
+    }
+
+    /** An on-disk cache file in the CURRENT persisted shape. */
+    function seedDiskCache(fs: typeof import('node:fs'), version: number, mtimeMs: number) {
+      const readFileSync = fs.readFileSync as unknown as ReturnType<typeof vi.fn>
+      readFileSync.mockImplementation(() =>
+        JSON.stringify({
+          version,
+          entries: { 'session-abc': { mtimeMs, summary: makeSummary() } },
+        }),
+      )
+    }
+
+    it('writes when a summary was parsed', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
       mockScanProjects.mockResolvedValue([makeProject()])
       mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
-      mockParseSummary.mockResolvedValue(summary)
-      mockIsSessionActive.mockResolvedValue(false)
+      mockParseSummary.mockResolvedValue(makeSummary())
+
+      await scanAllSessions()
+
+      expect(persistCount(fs)).toBe(1)
+    })
+
+    it('does NOT write when every entry was a cache hit and nothing was pruned', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary())
+
+      await scanAllSessions() // cold: parses + persists
+      const afterFirst = persistCount(fs)
+      await scanAllSessions() // pure cache hit
+
+      expect(afterFirst).toBe(1)
+      expect(persistCount(fs)).toBe(1)
+      expect(mockParseSummary).toHaveBeenCalledTimes(1)
+    })
+
+    it('writes when an entry was pruned', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([
+        makeProject({ sessionFiles: ['session-abc.jsonl', 'session-gone.jsonl'] }),
+      ])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockImplementation(async (_p, id: string) => makeSummary({ sessionId: id }))
+
+      await scanAllSessions()
+      const afterFirst = persistCount(fs)
+
+      // session-gone.jsonl disappears: its cache entry must be pruned AND persisted.
+      mockScanProjects.mockResolvedValue([makeProject({ sessionFiles: ['session-abc.jsonl'] })])
+      await scanAllSessions()
+
+      expect(persistCount(fs)).toBe(afterFirst + 1)
+    })
+
+    it('repairs a version-mismatched cache file on the first scan instead of re-parsing forever', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      seedDiskCache(fs, 3, 1000) // stale version — hydrate must bail out
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary())
+
+      await scanAllSessions()
+
+      expect(persistCount(fs)).toBe(1)
+    })
+
+    it('hydrates a pre-existing current-version cache file and then writes nothing', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      seedDiskCache(fs, 5, 1000)
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary())
+
+      const result = await scanAllSessions()
+
+      expect(result).toHaveLength(1)
+      expect(mockParseSummary).not.toHaveBeenCalled()
+      expect(persistCount(fs)).toBe(0)
+    })
+
+    it('treats a version:4 payload as a COLD cache and re-parses (evicts poisoned claudeNames)', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      // v4 entries were written while the sessions/*.json tier could poison
+      // claudeName; their mtimes never change, so only the version bump evicts them.
+      seedDiskCache(fs, 4, 1000)
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary({ claudeName: 'kanban-board' }))
+
+      const result = await scanAllSessions()
+
+      expect(mockParseSummary).toHaveBeenCalledTimes(1)
+      expect(result[0].claudeName).toBe('kanban-board')
+      expect(persistCount(fs)).toBe(1)
+    })
+  })
+
+  describe('session names (the durable JSONL custom-title is the only source)', () => {
+    /**
+     * Seeds ~/.claude/sessions/<id>.json — the tier P6 deleted. It carried
+     * derived junk ('agents-f6') and stale values that shadowed the real title.
+     */
+    function seedSessionsJson(fs: typeof import('node:fs'), name: string, nameSource = 'derived') {
+      const readdirSync = fs.readdirSync as unknown as ReturnType<typeof vi.fn>
+      const readFileSync = fs.readFileSync as unknown as ReturnType<typeof vi.fn>
+      readdirSync.mockImplementation(() => ['session-abc.json'])
+      readFileSync.mockImplementation((p: string) => {
+        if (String(p).includes('sessions')) {
+          return JSON.stringify({ sessionId: 'session-abc', name, nameSource })
+        }
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+      })
+    }
+
+    it('never lets a sessions/*.json name (nameSource: derived) reach summary.claudeName', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      seedSessionsJson(fs, 'agents-f6')
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary({ claudeName: null }))
+
+      const result = await scanAllSessions()
+
+      expect(result[0].claudeName).toBeNull()
+      // The whole tier is gone: the sessions dir is never even read.
+      const readdirSync = fs.readdirSync as unknown as ReturnType<typeof vi.fn>
+      expect(readdirSync).not.toHaveBeenCalled()
+    })
+
+    it('JSONL custom-title wins over a stale sessions/*.json name', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      // The exact defect on disk today: cached 'agents-f6' shadowing 'kanban-board'.
+      seedSessionsJson(fs, 'agents-f6')
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary({ claudeName: 'kanban-board' }))
+
+      const result = await scanAllSessions()
+
+      expect(result[0].claudeName).toBe('kanban-board')
+    })
+
+    it('cache HIT does not resurrect a claudeName absent from the cached summary', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary({ claudeName: null }))
+
+      const cold = await scanAllSessions()
+      expect(cold[0].claudeName).toBeNull()
+
+      // A name appears in sessions/*.json AFTER the entry was cached.
+      seedSessionsJson(fs, 'agents-f6')
+      const warm = await scanAllSessions()
+
+      expect(mockParseSummary).toHaveBeenCalledTimes(1) // cache hit
+      expect(warm[0].claudeName).toBeNull()
+    })
+
+    it('cache HIT preserves the JSONL custom-title captured at parse time', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary({ claudeName: 'kanban-board' }))
+
+      await scanAllSessions()
+      const warm = await scanAllSessions()
+
+      expect(mockParseSummary).toHaveBeenCalledTimes(1)
+      expect(warm[0].claudeName).toBe('kanban-board')
+    })
+  })
+
+  describe('server-only fields', () => {
+    it('scanAllSessions strips both filePath and mtimeMs', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 4242, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary())
+
+      const result = await scanAllSessions()
+
+      expect(result[0]).not.toHaveProperty('filePath')
+      expect(result[0]).not.toHaveProperty('mtimeMs')
+    })
+
+    it('scanAllSessionsWithPaths carries the JSONL mtimeMs for the stats contribution key', async () => {
+      const { scanAllSessionsWithPaths, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 4242, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary())
+
+      const parsed = await scanAllSessionsWithPaths()
+      expect(parsed[0].mtimeMs).toBe(4242)
+
+      // ...and on the cache-hit path too, where the value comes from the fresh stat.
+      mockStat.mockResolvedValue({ mtimeMs: 4242, size: 1024 })
+      const cached = await scanAllSessionsWithPaths()
+      expect(mockParseSummary).toHaveBeenCalledTimes(1)
+      expect(cached[0].mtimeMs).toBe(4242)
+    })
+  })
+
+  describe('in-flight scan lock', () => {
+    it('coalesces concurrent callers onto one scan (scanProjects runs once)', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary())
 
       // Both calls start before the first resolves — they must share one scan.
       const [a, b] = await Promise.all([scanAllSessions(), scanAllSessions()])
@@ -406,18 +789,11 @@ describe('session-scanner', () => {
     })
 
     it('runs a fresh scan after the previous one settles', async () => {
-      const {
-        scanAllSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
 
       mockScanProjects.mockResolvedValue([])
       mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
       mockParseSummary.mockResolvedValue(makeSummary())
-      mockIsSessionActive.mockResolvedValue(false)
 
       await scanAllSessions()
       await scanAllSessions()
@@ -434,15 +810,12 @@ describe('session-scanner', () => {
         clearSummaryCache,
         mockScanProjects,
         mockParseSummary,
-        mockIsSessionActive,
         mockStat,
       } = await importScanner()
 
-      const summary = makeSummary()
       mockScanProjects.mockResolvedValue([makeProject()])
       mockStat.mockResolvedValue({ mtimeMs: 7000, size: 1024 })
-      mockParseSummary.mockResolvedValue(summary)
-      mockIsSessionActive.mockResolvedValue(false)
+      mockParseSummary.mockResolvedValue(makeSummary())
 
       await scanAllSessions() // cold → parse #1
       await scanAllSessions() // cache hit → no new parse
@@ -461,15 +834,12 @@ describe('session-scanner', () => {
         scanAllSessionsWithPaths,
         mockScanProjects,
         mockParseSummary,
-        mockIsSessionActive,
         mockStat,
       } = await importScanner()
 
-      const summary = makeSummary()
       mockScanProjects.mockResolvedValue([makeProject()])
       mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
-      mockParseSummary.mockResolvedValue(summary)
-      mockIsSessionActive.mockResolvedValue(false)
+      mockParseSummary.mockResolvedValue(makeSummary())
 
       const result = await scanAllSessionsWithPaths()
 
@@ -492,17 +862,14 @@ describe('session-scanner', () => {
         scanAllSessionsWithPaths,
         mockScanProjects,
         mockParseSummary,
-        mockIsSessionActive,
         mockStat,
       } = await importScanner()
 
-      const summary = makeSummary()
       mockScanProjects.mockResolvedValue([
         makeProject({ dirName: '-Users-user-myproject', sessionFiles: ['session-abc.jsonl'] }),
       ])
       mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
-      mockParseSummary.mockResolvedValue(summary)
-      mockIsSessionActive.mockResolvedValue(false)
+      mockParseSummary.mockResolvedValue(makeSummary())
 
       const result = await scanAllSessionsWithPaths()
 
@@ -511,100 +878,346 @@ describe('session-scanner', () => {
     })
   })
 
-  describe('getActiveSessions', () => {
-    it('returns [] when there are no sessions', async () => {
-      const { getActiveSessions, mockScanProjects } = await importScanner()
-      mockScanProjects.mockResolvedValue([])
+  describe('project identity from the recorded cwd', () => {
+    const REWIND_WORK = 'C:\\Users\\godot\\_work\\rewind-dashboard'
 
-      const result = await getActiveSessions()
-
-      expect(result).toEqual([])
+    // vi.clearAllMocks() keeps implementations, so restore the module defaults.
+    beforeEach(async () => {
+      const fs = await import('node:fs')
+      ;(fs.readFileSync as unknown as ReturnType<typeof vi.fn>).mockImplementation(() => {
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+      })
+      ;(fs.existsSync as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true)
     })
 
-    it('returns all sessions when all are active', async () => {
-      const {
-        getActiveSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
+    it('re-derives realPath/projectName for a CACHED summary (else the fix is a no-op for ~450 sessions)', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
 
-      const session1 = makeSummary({ sessionId: 'session-1', lastActiveAt: '2026-01-01T11:00:00.000Z' })
-      const session2 = makeSummary({ sessionId: 'session-2', lastActiveAt: '2026-01-01T10:00:00.000Z' })
-
-      mockScanProjects.mockResolvedValue([
-        makeProject({ sessionFiles: ['session-1.jsonl', 'session-2.jsonl'] }),
-      ])
-      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
-      mockParseSummary
-        .mockResolvedValueOnce(session1)
-        .mockResolvedValueOnce(session2)
-      mockIsSessionActive.mockResolvedValue(true)
-
-      const result = await getActiveSessions()
-
-      expect(result).toHaveLength(2)
-      expect(result.every((s) => s.isActive)).toBe(true)
-    })
-
-    it('filters out inactive sessions', async () => {
-      const {
-        getActiveSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
-
-      const activeSession = makeSummary({
-        sessionId: 'session-active',
-        lastActiveAt: '2026-01-01T11:00:00.000Z',
-      })
-      const inactiveSession = makeSummary({
-        sessionId: 'session-inactive',
-        lastActiveAt: '2026-01-01T10:00:00.000Z',
-      })
-
-      mockScanProjects.mockResolvedValue([
-        makeProject({
-          sessionFiles: ['session-active.jsonl', 'session-inactive.jsonl'],
+      // A v5 on-disk entry whose persisted identity is the old lossy-decode junk.
+      const readFileSync = fs.readFileSync as unknown as ReturnType<typeof vi.fn>
+      readFileSync.mockImplementationOnce(() =>
+        JSON.stringify({
+          version: 5,
+          entries: {
+            'session-abc': {
+              mtimeMs: 1000,
+              summary: makeSummary({
+                projectPath: 'C:/Users-godot--work-rewind-dashboard',
+                projectName: 'work-rewind-dashboard',
+                cwd: REWIND_WORK,
+              }),
+            },
+          },
         }),
-      ])
-      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
-      mockParseSummary
-        .mockResolvedValueOnce(activeSession)
-        .mockResolvedValueOnce(inactiveSession)
-      // First session active, second not
-      mockIsSessionActive
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(false)
-
-      const result = await getActiveSessions()
-
-      expect(result).toHaveLength(1)
-      expect(result[0].sessionId).toBe('session-active')
-      expect(result[0].isActive).toBe(true)
-    })
-
-    it('returns [] when all sessions are inactive', async () => {
-      const {
-        getActiveSessions,
-        mockScanProjects,
-        mockParseSummary,
-        mockIsSessionActive,
-        mockStat,
-      } = await importScanner()
-
-      const summary = makeSummary({ isActive: false })
+      )
       mockScanProjects.mockResolvedValue([makeProject()])
       mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
-      mockParseSummary.mockResolvedValue(summary)
-      mockIsSessionActive.mockResolvedValue(false)
 
-      const result = await getActiveSessions()
+      const result = await scanAllSessions()
 
-      expect(result).toEqual([])
+      expect(mockParseSummary).not.toHaveBeenCalled() // pure cache hit, mtime unchanged
+      expect(result[0].realPath).toBe(REWIND_WORK)
+      expect(result[0].projectName).toBe('rewind-dashboard')
+      // projectPath stays the lookup key used by session-detail/chat findSessionFile.
+      expect(result[0].projectPath).toBe('C:/Users-godot--work-rewind-dashboard')
+    })
+
+    it('resolves realPath without ever reading a JSONL head (the rejected 8 KB heuristic)', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([
+        makeProject({ sessionFiles: ['old.jsonl', 'new.jsonl'] }),
+      ])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockImplementation(async (_p: string, id: string) =>
+        makeSummary({
+          sessionId: id,
+          lastActiveAt: id === 'new' ? '2026-02-01T00:00:00.000Z' : '2026-01-01T00:00:00.000Z',
+          // The cwd only appears deep in the file; a head read would miss it.
+          cwd: REWIND_WORK,
+        }),
+      )
+
+      const result = await scanAllSessions()
+
+      expect(result.every((s) => s.realPath === REWIND_WORK)).toBe(true)
+      const readFileSync = fs.readFileSync as unknown as ReturnType<typeof vi.fn>
+      const jsonlReads = readFileSync.mock.calls.filter((args) => String(args[0]).endsWith('.jsonl'))
+      expect(jsonlReads).toHaveLength(0)
+    })
+
+    it('falls back to the next session when the newest recorded no cwd at all', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([
+        makeProject({ sessionFiles: ['old.jsonl', 'new.jsonl'] }),
+      ])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockImplementation(async (_p: string, id: string) =>
+        makeSummary({
+          sessionId: id,
+          lastActiveAt: id === 'new' ? '2026-02-01T00:00:00.000Z' : '2026-01-01T00:00:00.000Z',
+          cwd: id === 'new' ? null : REWIND_WORK,
+        }),
+      )
+
+      const result = await scanAllSessions()
+
+      expect(result.every((s) => s.realPath === REWIND_WORK)).toBe(true)
+    })
+
+    it('gives two dirs whose cwds share a basename two DISTINCT names in one scan', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([
+        makeProject({ dirName: 'C--Users-godot--work-rewind-dashboard', sessionFiles: ['work.jsonl'] }),
+        makeProject({ dirName: 'C--Users-godot--CODE-rewind-dashboard', sessionFiles: ['code.jsonl'] }),
+      ])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockImplementation(async (_p: string, id: string) =>
+        makeSummary({
+          sessionId: id,
+          cwd: id === 'work' ? REWIND_WORK : 'C:\\Users\\godot\\_CODE\\rewind-dashboard',
+        }),
+      )
+
+      const result = await scanAllSessions()
+
+      const work = result.find((s) => s.sessionId === 'work')
+      const code = result.find((s) => s.sessionId === 'code')
+      expect(work?.projectName).toBe('_work/rewind-dashboard')
+      expect(code?.projectName).toBe('_CODE/rewind-dashboard')
+    })
+
+    it('produces a non-empty name for the drive-root project (cwd C:\\)', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject({ dirName: 'C--' })])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary({ cwd: 'C:\\' }))
+
+      const result = await scanAllSessions()
+
+      expect(result[0].projectName).not.toBe('')
+      expect(result[0].realPath).toBe('C:\\')
+    })
+
+    it('matches the name session-detail derives from the same cwd (list/detail parity)', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary({ cwd: REWIND_WORK }))
+
+      const result = await scanAllSessions()
+
+      // session-detail.api.resolveDetailProjectName() is proven to be exactly
+      // deriveProjectName(cwd) in session-detail.api.test.ts, so this closes the
+      // list/detail loop without importing the server fn into the scanner test.
+      expect(result[0].projectName).toBe(deriveProjectName(REWIND_WORK))
+    })
+
+    it('flags a dir whose recorded cwd is gone but STILL LISTS its sessions', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      const existsSync = fs.existsSync as unknown as ReturnType<typeof vi.fn>
+      existsSync.mockReturnValueOnce(false)
+      mockScanProjects.mockResolvedValue([
+        makeProject({ sessionFiles: ['a.jsonl', 'b.jsonl'] }),
+      ])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockImplementation(async (_p: string, id: string) =>
+        makeSummary({ sessionId: id, cwd: 'C:\\Users\\godot\\OneDrive\\gone' }),
+      )
+
+      const result = await scanAllSessions()
+
+      // Auto-hiding here would have hidden 6 of 7 real rewind-dashboard sessions.
+      expect(result).toHaveLength(2)
+      expect(result.every((s) => s.pathExists === false)).toBe(true)
+      expect(result.every((s) => s.realPath === 'C:\\Users\\godot\\OneDrive\\gone')).toBe(true)
+      // One existsSync per distinct recorded path, not one per session.
+      expect(existsSync).toHaveBeenCalledTimes(1)
+    })
+
+    it('reports pathExists true when no cwd was ever recorded (no false stale badge)', async () => {
+      const { scanAllSessions, mockScanProjects, mockParseSummary, mockStat, fs } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: 1000, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary({ cwd: null }))
+
+      const result = await scanAllSessions()
+
+      expect(result[0].realPath).toBeNull()
+      expect(result[0].pathExists).toBe(true)
+      expect(result[0].projectName).toBe('myproject') // decoded fallback kept
+      expect(fs.existsSync as unknown as ReturnType<typeof vi.fn>).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('getLiveSessionStates', () => {
+    it('returns [] when the registry is unavailable', async () => {
+      const { getLiveSessionStates, mockReadLiveSessions } = await importScanner()
+      mockReadLiveSessions.mockReturnValue(registry({}, false))
+
+      expect(getLiveSessionStates()).toEqual([])
+    })
+
+    it('returns [] when no process is live', async () => {
+      const { getLiveSessionStates } = await importScanner()
+
+      expect(getLiveSessionStates()).toEqual([])
+    })
+
+    it('maps a busy record with a fresh file to working and everything else to waiting', async () => {
+      const { getLiveSessionStates, mockReadLiveSessions, mockStatSync } = await importScanner()
+      mockReadLiveSessions.mockReturnValue(
+        registry({ 'session-busy': 'busy', 'session-idle': 'idle', 'session-huh': 'unknown' }),
+      )
+      mockStatSync.mockReturnValue({ mtimeMs: NOW })
+
+      expect(getLiveSessionStates()).toEqual([
+        { sessionId: 'session-busy', sessionState: 'working' },
+        { sessionId: 'session-idle', sessionState: 'waiting' },
+        { sessionId: 'session-huh', sessionState: 'waiting' },
+      ])
+      // Only the busy record needs an mtime: idle/unknown are 'waiting' regardless.
+      expect(mockStatSync).toHaveBeenCalledTimes(1)
+      expect(mockStatSync).toHaveBeenCalledWith(
+        path.join('/mock/claude/projects', '-Users-user-myproject', 'session-busy.jsonl'),
+      )
+    })
+
+    it('demotes a busy record whose file has not moved in 6 months (same rule as the scan)', async () => {
+      const { getLiveSessionStates, mockReadLiveSessions, mockStatSync } = await importScanner()
+      mockReadLiveSessions.mockReturnValue(registry({ 'session-abc': 'busy' }))
+      mockStatSync.mockReturnValue({ mtimeMs: NOW - 180 * 24 * 60 * 60 * 1000 })
+
+      expect(getLiveSessionStates()).toEqual([
+        { sessionId: 'session-abc', sessionState: 'waiting' },
+      ])
+    })
+
+    it('demotes a busy record whose JSONL cannot be located at all', async () => {
+      const { getLiveSessionStates, mockReadLiveSessions } = await importScanner()
+      // statSync throws ENOENT (mock default): an unverifiable busy record must
+      // never be reported as working.
+      mockReadLiveSessions.mockReturnValue(registry({ 'session-abc': 'busy' }))
+
+      expect(getLiveSessionStates()).toEqual([
+        { sessionId: 'session-abc', sessionState: 'waiting' },
+      ])
+    })
+
+    it('never triggers a session scan', async () => {
+      const { getLiveSessionStates, mockScanProjects, mockReadLiveSessions, mockStatSync } =
+        await importScanner()
+      mockReadLiveSessions.mockReturnValue(registry({ 'session-abc': 'busy' }))
+      mockStatSync.mockReturnValue({ mtimeMs: NOW })
+
+      getLiveSessionStates()
+
+      // The old getActiveSessions() ran a full 454-file scan every 3 seconds.
+      expect(mockScanProjects).not.toHaveBeenCalled()
+      // At most one stat per busy registry entry, not one per session file.
+      expect(mockStatSync).toHaveBeenCalledTimes(1)
+    })
+
+    it('reuses the path learned by the last scan when the record has no cwd', async () => {
+      const {
+        scanAllSessions,
+        getLiveSessionStates,
+        mockScanProjects,
+        mockParseSummary,
+        mockReadLiveSessions,
+        mockStat,
+        mockStatSync,
+      } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: NOW, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary())
+      mockReadLiveSessions.mockReturnValue(registry())
+      await scanAllSessions()
+
+      const noCwd: LiveSessionsResult = {
+        available: true,
+        sessions: new Map([
+          ['session-abc', { sessionId: 'session-abc', pid: 1, status: 'busy', updatedAt: NOW }],
+        ]),
+      }
+      mockReadLiveSessions.mockReturnValue(noCwd)
+      mockStatSync.mockReturnValue({ mtimeMs: NOW })
+
+      expect(getLiveSessionStates()).toEqual([
+        { sessionId: 'session-abc', sessionState: 'working' },
+      ])
+      expect(mockStatSync).toHaveBeenCalledWith(
+        path.join('/mock/claude/projects', '-Users-user-myproject', 'session-abc.jsonl'),
+      )
+    })
+  })
+
+  describe('the 3s poll must not undo the 30s scan', () => {
+    it('REGRESSION: a stale busy record the scan demoted is NOT flipped back to working', async () => {
+      const {
+        scanAllSessions,
+        getLiveSessionStates,
+        mockScanProjects,
+        mockParseSummary,
+        mockReadLiveSessions,
+        mockStat,
+        mockStatSync,
+      } = await importScanner()
+
+      // A session killed mid-turn: status:'busy' frozen on disk, pid reused so
+      // it still probes alive, JSONL untouched for six months.
+      const sixMonthsAgo = NOW - 180 * 24 * 60 * 60 * 1000
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: sixMonthsAgo, size: 1024 })
+      mockStatSync.mockReturnValue({ mtimeMs: sixMonthsAgo })
+      mockParseSummary.mockResolvedValue(makeSummary())
+      mockReadLiveSessions.mockReturnValue(registry({ 'session-abc': 'busy' }))
+
+      const scanned = await scanAllSessions()
+      expect(scanned[0].sessionState).toBe('waiting')
+
+      // The poll payload the client merges over the scan results.
+      const polled = getLiveSessionStates()
+      expect(polled).toEqual([{ sessionId: 'session-abc', sessionState: 'waiting' }])
+
+      const merged = mergeLiveStates(scanned, polled, true)
+      expect(merged[0].sessionState).toBe('waiting')
+      // The bug: 'working' here restarted a multi-month RunningTimer.
+      expect(merged[0].isActive).toBe(false)
+    })
+
+    it('still lets the poll promote a genuinely busy session with a fresh file', async () => {
+      const {
+        scanAllSessions,
+        getLiveSessionStates,
+        mockScanProjects,
+        mockParseSummary,
+        mockReadLiveSessions,
+        mockStat,
+        mockStatSync,
+      } = await importScanner()
+
+      mockScanProjects.mockResolvedValue([makeProject()])
+      mockStat.mockResolvedValue({ mtimeMs: NOW, size: 1024 })
+      mockParseSummary.mockResolvedValue(makeSummary())
+      mockReadLiveSessions.mockReturnValue(registry({ 'session-abc': 'idle' }))
+
+      const scanned = await scanAllSessions()
+      expect(scanned[0].sessionState).toBe('waiting')
+
+      mockReadLiveSessions.mockReturnValue(registry({ 'session-abc': 'busy' }))
+      mockStatSync.mockReturnValue({ mtimeMs: NOW })
+
+      const merged = mergeLiveStates(scanned, getLiveSessionStates(), true)
+      expect(merged[0].sessionState).toBe('working')
+      expect(merged[0].isActive).toBe(true)
     })
   })
 })

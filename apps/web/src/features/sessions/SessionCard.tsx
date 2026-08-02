@@ -6,6 +6,7 @@ import { usePinSession, useRenameSession, useHideProject } from '@/features/meta
 import { LaunchButton } from '@/components/LaunchButton'
 import { formatDuration, formatRelativeTime, formatDateTime, formatBytes, formatTokenCount } from '@/lib/utils/format'
 import { usePrivacy } from '@/features/privacy/PrivacyContext'
+import { resolveSessionTitle } from './session-title'
 import { StatusBadge } from './StatusBadge'
 import { RunningTimer } from './RunningTimer'
 
@@ -132,7 +133,13 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
   const customName = metadata?.customName
   const displayName = projectMeta?.customName || (privacyMode ? anonymizeProjectName(session.projectName) : session.projectName)
   const displayCwd = session.cwd ? anonymizePath(session.cwd, session.projectName) : null
-  const titleText = customName || session.claudeName || session.firstUserMessage || displayName
+  const titleText = resolveSessionTitle({
+    customName,
+    claudeName: session.claudeName,
+    firstUserMessage: session.firstUserMessage,
+    fallback: displayName,
+    privacyMode,
+  })
 
   return (
     <Link
@@ -157,7 +164,7 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
                 session.sessionState === 'working' ? 'border-matrix/25' : ''
               }`} title={titleText}>{titleText}</h3>
               {session.sessionState !== 'inactive' && (
-                <StatusBadge isActive={session.isActive} sessionState={session.sessionState} />
+                <StatusBadge sessionState={session.sessionState} />
               )}
             </div>
           )}
@@ -191,7 +198,7 @@ export function SessionCard({ session, metadata, projectMeta }: SessionCardProps
       <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
         {session.totalTokens > 0 && <span title="Total tokens" className="text-matrix/70">{formatTokenCount(session.totalTokens)} tokens</span>}
         <span title="Duration" className="text-gray-500">
-          {session.isActive ? <RunningTimer startedAt={session.startedAt} /> : formatDuration(session.durationMs)}
+          {session.sessionState === 'working' ? <RunningTimer startedAt={session.startedAt} /> : formatDuration(session.durationMs)}
         </span>
         <span title="Messages">{session.messageCount} msgs</span>
         {session.model && (

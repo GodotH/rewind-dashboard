@@ -11,6 +11,8 @@ describe('paginateAndFilterSessions', () => {
     projectDir: '-path-to-project',
     projectPath: '/path/to/project',
     projectName: 'test-project',
+    realPath: null,
+    pathExists: true,
     branch: 'main',
     cwd: '/path/to/project',
     startedAt: '2026-01-01T10:00:00Z',
@@ -106,6 +108,25 @@ describe('paginateAndFilterSessions', () => {
 
       expect(result.sessions).toHaveLength(1)
       expect(result.sessions[0].cwd).toBe('/Users/name/projects/web')
+    })
+
+    it('should filter by claudeName (the /rename title shown on the card)', async () => {
+      const sessions = [
+        createMockSession({ claudeName: 'kanban-board' }),
+        createMockSession({ claudeName: 'invoice-parser' }),
+        createMockSession({ claudeName: null }),
+      ]
+
+      const result = await paginateAndFilterSessions(sessions, {
+        page: 1,
+        pageSize: 10,
+        search: 'KANBAN',
+        status: 'all',
+        project: '', sort: 'latest' as const, starFirst: true,
+      })
+
+      expect(result.sessions).toHaveLength(1)
+      expect(result.sessions[0].claudeName).toBe('kanban-board')
     })
 
     it('should handle null values gracefully', async () => {
@@ -228,6 +249,72 @@ describe('paginateAndFilterSessions', () => {
       expect(result.sessions).toHaveLength(1)
       expect(result.sessions[0].projectName).toBe('project-a')
       expect(result.totalCount).toBe(1)
+    })
+
+    it('filters by the encoded projectDir (what the Projects table links to)', async () => {
+      const sessions = [
+        createMockSession({
+          projectDir: 'C--Users-godot--work-rewind-dashboard',
+          projectName: '_work/rewind-dashboard',
+        }),
+        createMockSession({
+          projectDir: 'C--Users-godot--CODE-rewind-dashboard',
+          projectName: '_CODE/rewind-dashboard',
+        }),
+        createMockSession({ projectDir: '-other', projectName: 'other' }),
+      ]
+
+      const result = await paginateAndFilterSessions(sessions, {
+        page: 1,
+        pageSize: 10,
+        search: '',
+        status: 'all',
+        project: 'C--Users-godot--CODE-rewind-dashboard',
+        sort: 'latest' as const,
+        starFirst: true,
+      })
+
+      // Two rows now share a base name, so only the dir key can separate them.
+      expect(result.sessions).toHaveLength(1)
+      expect(result.sessions[0].projectName).toBe('_CODE/rewind-dashboard')
+    })
+
+    it('BACKWARD COMPAT: an existing projectName bookmark still returns the union', async () => {
+      const sessions = [
+        createMockSession({ projectDir: '-dir-one', projectName: 'shared-name' }),
+        createMockSession({ projectDir: '-dir-two', projectName: 'shared-name' }),
+        createMockSession({ projectDir: '-dir-three', projectName: 'other' }),
+      ]
+
+      const result = await paginateAndFilterSessions(sessions, {
+        page: 1,
+        pageSize: 10,
+        search: '',
+        status: 'all',
+        project: 'shared-name',
+        sort: 'latest' as const,
+        starFirst: true,
+      })
+
+      expect(result.sessions).toHaveLength(2)
+    })
+
+    it('exposes projectDirs so a dir-keyed filter is not reconciled away as stale', async () => {
+      const sessions = [
+        createMockSession({ projectDir: '-dir-one', projectName: 'one' }),
+        createMockSession({ projectDir: '-dir-two', projectName: 'two' }),
+      ]
+
+      const result = await paginateAndFilterSessions(sessions, {
+        page: 1,
+        pageSize: 10,
+        search: '',
+        status: 'all',
+        project: '', sort: 'latest' as const, starFirst: true,
+      })
+
+      expect(result.projectDirs).toEqual(['-dir-one', '-dir-two'])
+      expect(result.projects).toEqual(['one', 'two'])
     })
 
     it('should return all sessions when project filter is empty', async () => {
@@ -605,6 +692,143 @@ describe('paginateAndFilterSessions', () => {
     })
   })
 
+  describe('hidden session filter (keyed by sessionId)', () => {
+    const baseInput = {
+      page: 1,
+      pageSize: 10,
+      search: '',
+      status: 'all' as const,
+      project: '',
+      sort: 'latest' as const,
+      starFirst: true,
+    }
+
+    it('filters out an individually hidden session and leaves its siblings alone', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'keep-1', projectDir: '-dir-a', projectName: 'alpha' }),
+        createMockSession({ sessionId: 'drop-me', projectDir: '-dir-a', projectName: 'alpha' }),
+        createMockSession({ sessionId: 'keep-2', projectDir: '-dir-a', projectName: 'alpha' }),
+      ]
+      const metadata: Metadata = {
+        version: 2,
+        sessions: { 'drop-me': { hidden: true } },
+        projects: {},
+      }
+
+      const result = await paginateAndFilterSessions(sessions, baseInput, metadata)
+
+      expect(result.sessions.map((s) => s.sessionId).sort()).toEqual(['keep-1', 'keep-2'])
+      expect(result.hiddenSessionOnlyCount).toBe(1)
+      expect(result.hiddenSessions).toHaveLength(1)
+      expect(result.hiddenSessions[0].sessionId).toBe('drop-me')
+      expect(result.hiddenSessions[0].projectName).toBe('alpha')
+      // Hiding a session must not mark its project hidden.
+      expect(result.hiddenProjects).toEqual([])
+      expect(result.hiddenSessionCount).toBe(0)
+    })
+
+    it('reveals individually hidden sessions when showHidden is true', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'keep-1', projectDir: '-dir-a', projectName: 'alpha' }),
+        createMockSession({ sessionId: 'drop-me', projectDir: '-dir-a', projectName: 'alpha' }),
+      ]
+      const metadata: Metadata = {
+        version: 2,
+        sessions: { 'drop-me': { hidden: true } },
+        projects: {},
+      }
+
+      const result = await paginateAndFilterSessions(
+        sessions,
+        { ...baseInput, showHidden: true },
+        metadata,
+      )
+
+      expect(result.sessions.map((s) => s.sessionId).sort()).toEqual(['drop-me', 'keep-1'])
+      expect(result.hiddenSessionOnlyCount).toBe(1)
+    })
+
+    it('stays hidden under a project filter, unlike the project rule', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'keep-1', projectDir: '-dir-a', projectName: 'alpha' }),
+        createMockSession({ sessionId: 'drop-me', projectDir: '-dir-a', projectName: 'alpha' }),
+      ]
+      const metadata: Metadata = {
+        version: 2,
+        sessions: { 'drop-me': { hidden: true } },
+        projects: {},
+      }
+
+      const result = await paginateAndFilterSessions(
+        sessions,
+        { ...baseInput, project: '-dir-a' },
+        metadata,
+      )
+
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['keep-1'])
+    })
+
+    it('stays hidden while active, unlike the project rule', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'keep-1', projectDir: '-dir-a', projectName: 'alpha' }),
+        createMockSession({
+          sessionId: 'drop-me',
+          projectDir: '-dir-a',
+          projectName: 'alpha',
+          isActive: true,
+          sessionState: 'working',
+        }),
+      ]
+      const metadata: Metadata = {
+        version: 2,
+        sessions: { 'drop-me': { hidden: true } },
+        projects: {},
+      }
+
+      const result = await paginateAndFilterSessions(sessions, baseInput, metadata)
+
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['keep-1'])
+    })
+
+    it('hiding a project does not hide its sessions individually', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'p1', projectDir: '-dir-hidden', projectName: 'alpha' }),
+        createMockSession({ sessionId: 'p2', projectDir: '-dir-hidden', projectName: 'alpha' }),
+      ]
+      const metadata: Metadata = {
+        version: 2,
+        sessions: {},
+        projects: { '-dir-hidden': { hidden: true } },
+      }
+
+      const result = await paginateAndFilterSessions(sessions, baseInput, metadata)
+
+      expect(result.sessions).toHaveLength(0)
+      expect(result.hiddenSessionCount).toBe(2)
+      // The per-session bucket stays empty: no session entry was ever written.
+      expect(result.hiddenSessionOnlyCount).toBe(0)
+      expect(result.hiddenSessions).toEqual([])
+    })
+
+    it('never double counts a hidden session that also lives in a hidden project', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'both', projectDir: '-dir-hidden', projectName: 'alpha' }),
+        createMockSession({ sessionId: 'solo', projectDir: '-dir-a', projectName: 'beta' }),
+      ]
+      const metadata: Metadata = {
+        version: 2,
+        sessions: { both: { hidden: true }, solo: { hidden: true } },
+        projects: { '-dir-hidden': { hidden: true } },
+      }
+
+      const result = await paginateAndFilterSessions(sessions, baseInput, metadata)
+
+      expect(result.hiddenSessionCount).toBe(1)
+      expect(result.hiddenSessionOnlyCount).toBe(1)
+      expect(result.hiddenSessions.map((s) => s.sessionId)).toEqual(['solo'])
+    })
+  })
+
   describe('hidden project summary + showHidden', () => {
     const metadata: Metadata = {
       version: 2,
@@ -686,6 +910,360 @@ describe('paginateAndFilterSessions', () => {
 
       expect(result.hiddenProjects).toEqual([])
       expect(result.hiddenSessionCount).toBe(0)
+    })
+  })
+
+  describe('search reaches hidden sessions and tolerates separators', () => {
+    // The reported bug: every unfindable session lived in a hidden project, and
+    // the matcher was a raw substring test, so `vector crm` could not match
+    // `vector-crm-v2` even with hiding off.
+    const sessions = [
+      createMockSession({
+        sessionId: 'fee51982',
+        projectDir: 'C--Users-godot-OneDrive--LIVE-AGENTS',
+        projectName: 'AGENTS',
+        claudeName: 'vector-crm-v2',
+        lastActiveAt: '2026-01-01T10:00:00Z',
+      }),
+      createMockSession({
+        sessionId: '5afc35a0',
+        projectDir: 'C--Users-godot-OneDrive--LIVE-AGENTS',
+        projectName: 'AGENTS',
+        claudeName: 'Brain-3',
+        lastActiveAt: '2026-01-02T10:00:00Z',
+      }),
+      createMockSession({
+        sessionId: '2a081304',
+        projectDir: '-dir-visible',
+        projectName: 'visible',
+        claudeName: null,
+        lastActiveAt: '2026-01-03T10:00:00Z',
+      }),
+      createMockSession({
+        sessionId: 'unrelated',
+        projectDir: '-dir-visible',
+        projectName: 'visible',
+        claudeName: 'unrelated',
+        lastActiveAt: '2026-01-04T10:00:00Z',
+      }),
+      createMockSession({
+        sessionId: 'bodyish',
+        projectDir: '-dir-visible',
+        projectName: 'visible',
+        claudeName: null,
+        firstUserMessage: 'can you fix the brain please',
+        lastActiveAt: '2026-06-01T10:00:00Z',
+      }),
+    ]
+    const metadata: Metadata = {
+      version: 2,
+      sessions: { '2a081304': { hidden: true, customName: 'brain-fix' } },
+      projects: { 'C--Users-godot-OneDrive--LIVE-AGENTS': { hidden: true } },
+    }
+    const base = {
+      page: 1,
+      pageSize: 50,
+      status: 'all' as const,
+      project: '',
+      sort: 'latest' as const,
+      starFirst: true,
+    }
+
+    async function run(search: string, over: Partial<typeof base> = {}) {
+      return paginateAndFilterSessions(sessions, { ...base, ...over, search }, metadata)
+    }
+
+    it('LITERAL REGRESSION: "vector crm" finds vector-crm-v2 inside a hidden project', async () => {
+      const result = await run('vector crm')
+      expect(result.sessions.map((s) => s.sessionId)).toContain('fee51982')
+    })
+
+    it('LITERAL REGRESSION: "brain" finds every brain-named session, hidden or not', async () => {
+      const result = await run('brain')
+      const ids = result.sessions.map((s) => s.sessionId)
+      expect(ids).toContain('5afc35a0') // hidden project
+      expect(ids).toContain('2a081304') // individually hidden, customName brain-fix
+    })
+
+    it('accepts case and separator variations of the same name', async () => {
+      for (const q of ['VECTOR CRM', 'Vector Crm', 'vector-crm', 'vector_crm', 'vec crm']) {
+        const result = await run(q)
+        expect(result.sessions.map((s) => s.sessionId), `query ${q}`).toContain('fee51982')
+      }
+    })
+
+    it('tags revealed rows and counts them', async () => {
+      const result = await run('vector crm')
+      const row = result.sessions.find((s) => s.sessionId === 'fee51982')
+      expect(row?.hiddenReason).toBe('project')
+      expect(result.hiddenMatchCount).toBe(1)
+    })
+
+    it('does not drag in unrelated hidden sessions', async () => {
+      const result = await run('vector crm')
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['fee51982'])
+    })
+
+    it('NO REGRESSION: an empty search still hides everything it used to', async () => {
+      const result = await run('')
+      const ids = result.sessions.map((s) => s.sessionId)
+      expect(ids).not.toContain('fee51982')
+      expect(ids).not.toContain('5afc35a0')
+      expect(ids).not.toContain('2a081304')
+      expect(result.hiddenMatchCount).toBe(0)
+      expect(result.sessions.every((s) => s.hiddenReason === undefined)).toBe(true)
+    })
+
+    it('ranks a name match above a first-message match under sort: latest', async () => {
+      // `bodyish` is the NEWEST session and would win on recency alone.
+      const result = await run('brain')
+      expect(result.sessions[0].sessionId).not.toBe('bodyish')
+      const ids = result.sessions.map((s) => s.sessionId)
+      expect(ids.indexOf('bodyish')).toBe(ids.length - 1)
+    })
+
+    it('does NOT apply rank to a literal sort', async () => {
+      const bySize = [
+        createMockSession({ sessionId: 'small', claudeName: 'brain', fileSizeBytes: 10 }),
+        createMockSession({ sessionId: 'big', firstUserMessage: 'brain dump', fileSizeBytes: 999 }),
+      ]
+      const result = await paginateAndFilterSessions(bySize, {
+        ...base,
+        search: 'brain',
+        sort: 'largest' as const,
+      })
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['big', 'small'])
+    })
+
+    it('finds every session in a project by its dir key', async () => {
+      const result = await run('agents')
+      const ids = result.sessions.map((s) => s.sessionId)
+      expect(ids).toContain('fee51982')
+      expect(ids).toContain('5afc35a0')
+      expect(result.sessions.every((s) => (s.matchRank ?? 9) <= 3)).toBe(true)
+    })
+
+    it('still finds a session by an id prefix', async () => {
+      const result = await run('fee51982')
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['fee51982'])
+    })
+
+    it('searches customName and claudeName as a union, not by precedence', async () => {
+      const both = [
+        createMockSession({ sessionId: 'dual', claudeName: 'beta' }),
+        createMockSession({ sessionId: 'other', claudeName: 'zzz' }),
+      ]
+      const meta: Metadata = {
+        version: 2,
+        sessions: { dual: { customName: 'alpha' } },
+        projects: {},
+      }
+
+      for (const q of ['alpha', 'beta']) {
+        const result = await paginateAndFilterSessions(both, { ...base, search: q }, meta)
+        expect(result.sessions.map((s) => s.sessionId), `query ${q}`).toEqual(['dual'])
+      }
+    })
+  })
+
+  describe('binary name-match grouping sorts by date within the group (issue: Brain sessions not by recency)', () => {
+    const base = {
+      page: 1,
+      pageSize: 50,
+      status: 'all' as const,
+      project: '',
+      sort: 'latest' as const,
+      starFirst: true,
+    }
+
+    it('USER BUG: Brain, brain-fix, hermes-brain all rank as name matches and must sort newest first', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'brain', claudeName: 'Brain', lastActiveAt: '2026-01-01T10:00:00Z' }),
+        createMockSession({ sessionId: 'brain-fix', claudeName: 'brain-fix', lastActiveAt: '2026-01-02T10:00:00Z' }),
+        createMockSession({ sessionId: 'hermes-brain', claudeName: 'hermes-brain', lastActiveAt: '2026-01-03T10:00:00Z' }),
+      ]
+
+      const result = await paginateAndFilterSessions(sessions, { ...base, search: 'brain' })
+
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['hermes-brain', 'brain-fix', 'brain'])
+    })
+
+    it('a name match still outranks a much newer body-only match', async () => {
+      const sessions = [
+        createMockSession({
+          sessionId: 'name-match',
+          claudeName: 'brain',
+          lastActiveAt: '2026-01-01T10:00:00Z',
+        }),
+        createMockSession({
+          sessionId: 'body-only',
+          claudeName: null,
+          firstUserMessage: 'please fix the brain module',
+          lastActiveAt: '2026-06-01T10:00:00Z',
+        }),
+      ]
+
+      const result = await paginateAndFilterSessions(sessions, { ...base, search: 'brain' })
+
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['name-match', 'body-only'])
+    })
+
+    it('two body-only matches sort newest first relative to each other', async () => {
+      const sessions = [
+        createMockSession({
+          sessionId: 'older-body',
+          claudeName: null,
+          firstUserMessage: 'brain dump one',
+          lastActiveAt: '2026-01-01T10:00:00Z',
+        }),
+        createMockSession({
+          sessionId: 'newer-body',
+          claudeName: null,
+          firstUserMessage: 'brain dump two',
+          lastActiveAt: '2026-01-05T10:00:00Z',
+        }),
+      ]
+
+      const result = await paginateAndFilterSessions(sessions, { ...base, search: 'brain' })
+
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['newer-body', 'older-body'])
+    })
+
+    it('active sessions still pin to the top regardless of match kind or date', async () => {
+      const sessions = [
+        createMockSession({
+          sessionId: 'inactive-name-match',
+          claudeName: 'brain',
+          lastActiveAt: '2026-06-01T10:00:00Z',
+        }),
+        createMockSession({
+          sessionId: 'active-body-only',
+          claudeName: null,
+          firstUserMessage: 'brain dump',
+          lastActiveAt: '2026-01-01T10:00:00Z',
+          isActive: true,
+        }),
+      ]
+
+      const result = await paginateAndFilterSessions(sessions, { ...base, search: 'brain' })
+
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['active-body-only', 'inactive-name-match'])
+    })
+
+    it('starFirst pinning still beats date within the same match group', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'pinned-older', claudeName: 'brain', lastActiveAt: '2026-01-01T10:00:00Z' }),
+        createMockSession({ sessionId: 'unpinned-newer', claudeName: 'brain-2', lastActiveAt: '2026-06-01T10:00:00Z' }),
+      ]
+      const metadata: Metadata = {
+        version: 2,
+        sessions: { 'pinned-older': { pinned: true } },
+        projects: {},
+      }
+
+      const result = await paginateAndFilterSessions(sessions, { ...base, search: 'brain' }, metadata)
+
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['pinned-older', 'unpinned-newer'])
+    })
+
+    it('a tier-3 project-name match is not a name match, and groups with the non-name matches', async () => {
+      const sessions = [
+        createMockSession({
+          sessionId: 'project-match',
+          claudeName: null,
+          projectName: 'brain-project',
+          lastActiveAt: '2026-01-01T10:00:00Z',
+        }),
+        createMockSession({
+          sessionId: 'older-name-match',
+          claudeName: 'brain',
+          lastActiveAt: '2025-01-01T10:00:00Z',
+        }),
+      ]
+
+      const result = await paginateAndFilterSessions(sessions, { ...base, search: 'brain' })
+
+      // The name match wins the group despite being far older.
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['older-name-match', 'project-match'])
+      expect(result.sessions.find((s) => s.sessionId === 'project-match')?.matchRank).toBe(3)
+    })
+  })
+
+  describe('a waiting session is live but NOT active', () => {
+    // isActive is load-bearing in four places. A waiting (live but idle)
+    // session carries isActive:false, so none of them must fire for it.
+    const waiting = { sessionState: 'waiting' as const, isActive: false }
+
+    it('does not bypass the hidden-project filter', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'visible', projectDir: '-dir-visible', projectName: 'visible' }),
+        createMockSession({ sessionId: 'hidden-waiting', projectDir: '-dir-hidden', projectName: 'hidden', ...waiting }),
+      ]
+      const metadata: Metadata = {
+        version: 2,
+        sessions: {},
+        projects: { '-dir-hidden': { hidden: true } },
+      }
+
+      const result = await paginateAndFilterSessions(
+        sessions,
+        { page: 1, pageSize: 10, search: '', status: 'all', project: '', sort: 'latest' as const, starFirst: true },
+        metadata,
+      )
+
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['visible'])
+    })
+
+    it('is still bypassed by a genuinely working session (semantics preserved)', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'hidden-working', projectDir: '-dir-hidden', projectName: 'hidden', isActive: true, sessionState: 'working' }),
+      ]
+      const metadata: Metadata = {
+        version: 2,
+        sessions: {},
+        projects: { '-dir-hidden': { hidden: true } },
+      }
+
+      const result = await paginateAndFilterSessions(
+        sessions,
+        { page: 1, pageSize: 10, search: '', status: 'all', project: '', sort: 'latest' as const, starFirst: true },
+        metadata,
+      )
+
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['hidden-working'])
+    })
+
+    it('is not pinned to the top of the latest sort', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'newest', lastActiveAt: '2026-01-05T10:00:00Z' }),
+        createMockSession({ sessionId: 'old-waiting', lastActiveAt: '2025-06-01T10:00:00Z', ...waiting }),
+      ]
+
+      const result = await paginateAndFilterSessions(sessions, {
+        page: 1,
+        pageSize: 10,
+        search: '',
+        status: 'all',
+        project: '',
+        sort: 'latest' as const,
+        starFirst: true,
+      })
+
+      expect(result.sessions.map((s) => s.sessionId)).toEqual(['newest', 'old-waiting'])
+    })
+
+    it('is excluded by the "active" status filter and kept by "completed"', async () => {
+      const sessions = [
+        createMockSession({ sessionId: 'working', isActive: true, sessionState: 'working' }),
+        createMockSession({ sessionId: 'waiting', ...waiting }),
+      ]
+      const base = { page: 1, pageSize: 10, search: '', project: '', sort: 'latest' as const, starFirst: true }
+
+      const active = await paginateAndFilterSessions(sessions, { ...base, status: 'active' })
+      const completed = await paginateAndFilterSessions(sessions, { ...base, status: 'completed' })
+
+      expect(active.sessions.map((s) => s.sessionId)).toEqual(['working'])
+      expect(completed.sessions.map((s) => s.sessionId)).toEqual(['waiting'])
     })
   })
 })

@@ -1,19 +1,17 @@
 import * as path from 'node:path'
 import * as fs from 'node:fs'
-import * as os from 'node:os'
 import { createServerFn } from '@tanstack/react-start'
-import { decodeProjectDirName, getProjectsDir } from '@/lib/utils/claude-path'
+import { decodeProjectDirName, getDashboardDir, getProjectsDir } from '@/lib/utils/claude-path'
 import { MetadataSchema, DEFAULT_METADATA, type Metadata } from './metadata.types'
 
-const METADATA_DIR = '.claude-dashboard'
 const METADATA_FILE = 'session-metadata.json'
 
 function getMetadataPath(): string {
-  return path.join(os.homedir(), METADATA_DIR, METADATA_FILE)
+  return path.join(getDashboardDir(), METADATA_FILE)
 }
 
 function getMetadataDir(): string {
-  return path.join(os.homedir(), METADATA_DIR)
+  return getDashboardDir()
 }
 
 function readMetadataSync(): Metadata {
@@ -155,6 +153,24 @@ export const pinSession = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const metadata = readMetadataSync()
     const entry = { ...metadata.sessions[data.sessionId], pinned: data.pinned || undefined }
+    // Pin = positive intent: clear any hide so the session stays visible.
+    if (data.pinned) entry.hidden = undefined
+    const cleaned = cleanEntry(entry)
+    if (cleaned) {
+      metadata.sessions[data.sessionId] = cleaned
+    } else {
+      delete metadata.sessions[data.sessionId]
+    }
+    writeMetadataSync(metadata)
+  })
+
+export const hideSession = createServerFn({ method: 'POST' })
+  .inputValidator((input: { sessionId: string; hidden: boolean }) => input)
+  .handler(async ({ data }) => {
+    const metadata = readMetadataSync()
+    const entry = { ...metadata.sessions[data.sessionId], hidden: data.hidden || undefined }
+    // Deliberate hide: clear any pin so the two states stay mutually exclusive.
+    if (data.hidden) entry.pinned = undefined
     const cleaned = cleanEntry(entry)
     if (cleaned) {
       metadata.sessions[data.sessionId] = cleaned

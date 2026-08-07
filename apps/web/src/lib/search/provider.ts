@@ -7,7 +7,7 @@
  * is an opt-in stub. The factory in ./index picks one at runtime.
  */
 
-export type BlockType = 'text' | 'tool_use' | 'tool_result' | 'thinking'
+export type BlockType = 'text' | 'tool_use' | 'tool_result' | 'thinking' | 'title'
 
 /**
  * A single search result. The first five fields are the original, stable shape
@@ -28,6 +28,10 @@ export interface SearchHit {
   blockType?: BlockType
   /** Number of matching blocks within the session (when grouped). */
   matchCount?: number
+  /** Resolved display title of the session (customName > claudeName > null). */
+  title?: string | null
+  /** True when the query matched the session's name, not only its body text. */
+  titleMatch?: boolean
 }
 
 export interface SearchQuery {
@@ -50,6 +54,12 @@ export interface SearchResult {
   provider: string
   /** True when the provider ran in a degraded/unavailable mode. */
   degraded?: boolean
+  /**
+   * ISO timestamp of the newest source file the index has covered, or null when
+   * unknown/not applicable. Lets the UI say the index is stale instead of
+   * presenting an out-of-date result set as complete.
+   */
+  indexedThrough?: string | null
 }
 
 export interface IndexStats {
@@ -65,6 +75,8 @@ export interface SearchProvider {
   isAvailable(): boolean | Promise<boolean>
   refresh(opts?: { force?: boolean }): Promise<IndexStats>
   search(query: SearchQuery): Promise<SearchResult>
+  /** Newest source mtime covered by the index, when the provider keeps one. */
+  indexedThrough?(): string | null
   close?(): void
 }
 

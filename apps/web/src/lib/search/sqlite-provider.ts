@@ -5,6 +5,8 @@ import { getCacheDir } from '../cache/disk-cache'
 import { scanProjects } from '../scanner/project-scanner'
 import { extractSearchBlocks, type SearchBlock } from './block-extractor'
 import { loadSqliteDriver, type SqliteDriver, type SqliteStatement } from './sqlite-driver'
+import { readTitleSource, resolveTitle, type SessionTitleRecord } from './title-source'
+import { normalizeForSearch } from './name-match'
 import {
   emptyIndexStats,
   type IndexStats,
@@ -23,6 +25,8 @@ const DEFAULT_THROTTLE_MS = 5000
 const SNIPPET_TOKENS = 12
 /** Cap on the number of FTS terms built from a single query. */
 const MAX_QUERY_TERMS = 32
+/** Files indexed between event-loop yields during a refresh pass. */
+const YIELD_EVERY_FILES = 25
 
 const CREATE_SQL = `
 CREATE TABLE IF NOT EXISTS indexed_files (
@@ -132,6 +136,36 @@ interface MatchRow {
   score: number
   snip: string
   mc: number
+  /** 1 when any matching block in this session was the title row. */
+  tm: number
+}
+
+/** One session's name row, queued during a refresh pass. */
+interface TitleRowWrite {
+  sessionId: string
+  projectPath: string
+  projectName: string
+  timestamp: string
+  content: string
+}
+
+/**
+ * Searchable text for a session's name row: the Rewind rename, the Claude Code
+ * `/rename` title, the project name and the folded project dir, followed by the
+ * whole thing folded again. Emitting both forms costs a few dozen bytes and
+ * makes `vector-crm-v2`, `vector crm v2` and `vector crm` all reachable through
+ * the unicode61 tokenizer.
+ */
+function buildTitleContent(
+  record: SessionTitleRecord | undefined,
+  projectName: string,
+  projectDir: string,
+): string {
+  const parts = [record?.customName, record?.claudeName, projectName, normalizeForSearch(projectDir)]
+  const raw = parts.filter((p): p is string => !!p && p.trim().length > 0).join(' ')
+  if (!raw) return ''
+  const folded = normalizeForSearch(raw)
+  return folded && folded !== raw ? `${raw} ${folded}` : raw
 }
 
 /**
@@ -148,14 +182,20 @@ export class SqliteSearchProvider implements SearchProvider {
   private db: SqliteDriver | null = null
   private initialized = false
   private lastRefresh = 0
+  private inFlightRefresh: Promise<IndexStats> | null = null
+  private inFlightForced = false
 
   private selectFilesStmt: SqliteStatement | null = null
   private deleteBlocksStmt: SqliteStatement | null = null
   private deleteFileStmt: SqliteStatement | null = null
   private insertBlockStmt: SqliteStatement | null = null
   private upsertFileStmt: SqliteStatement | null = null
+  private deleteTitleStmt: SqliteStatement | null = null
+  private selectTitleSessionsStmt: SqliteStatement | null = null
+  private upsertMetaStmt: SqliteStatement | null = null
   private indexFileTxn: ((sessionId: string, file: IndexFileMeta, blocks: SearchBlock[]) => void) | null = null
   private removeSessionTxn: ((sessionId: string) => void) | null = null
+  private writeTitlesTxn: ((rows: TitleRowWrite[]) => void) | null = null
 
   constructor(opts: SqliteProviderOptions = {}) {
     this.dbPath = opts.dbPath ?? path.join(getCacheDir(), 'search-index.db')
@@ -260,13 +300,78 @@ export class SqliteSearchProvider implements SearchProvider {
       },
     ) as typeof this.indexFileTxn
 
+    this.deleteTitleStmt = db.prepare(
+      "DELETE FROM blocks_src WHERE session_id = ? AND block_type = 'title'",
+    )
+    this.selectTitleSessionsStmt = db.prepare(
+      "SELECT session_id FROM blocks_src WHERE block_type = 'title'",
+    )
+    this.upsertMetaStmt = db.prepare(
+      'INSERT INTO meta(key, value) VALUES(?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+    )
+
     this.removeSessionTxn = db.transaction((sessionId: string) => {
       this.deleteBlocksStmt!.run(sessionId)
       this.deleteFileStmt!.run(sessionId)
     }) as typeof this.removeSessionTxn
+
+    // One transaction for the whole backfill: the first pass after this ships
+    // writes a name row for every session, and a transaction each would be
+    // thousands of fsyncs.
+    this.writeTitlesTxn = db.transaction((rows: TitleRowWrite[]) => {
+      for (const row of rows) {
+        // Delete first so the FTS delete trigger fires and no stale name lingers.
+        this.deleteTitleStmt!.run(row.sessionId)
+        this.insertBlockStmt!.run(
+          row.sessionId,
+          row.projectPath,
+          row.projectName,
+          'meta',
+          'title',
+          row.timestamp,
+          -1,
+          row.content,
+        )
+      }
+    }) as typeof this.writeTitlesTxn
   }
 
+  /**
+   * Incrementally reindex changed session files.
+   *
+   * Concurrent callers share ONE pass: a cold index takes tens of seconds and
+   * the write lock is synchronous, so overlapping passes serialize into a
+   * multi-minute stall. The throttle is measured from the END of the previous
+   * pass for the same reason: measuring from the start admits a duplicate scan
+   * the moment the pass runs longer than the throttle window.
+   *
+   * A forced call is NEVER satisfied by an in-flight non-forced pass: that pass
+   * skips unchanged files, so a rebuild request would silently no-op. It queues
+   * behind the running pass instead of racing it against the write lock.
+   */
   async refresh(opts?: { force?: boolean }): Promise<IndexStats> {
+    const force = opts?.force ?? false
+    if (this.inFlightRefresh && (!force || this.inFlightForced)) return this.inFlightRefresh
+
+    const previous = this.inFlightRefresh
+    const pass = (async () => {
+      if (previous) await previous.catch(() => undefined)
+      return this.runRefresh(opts)
+    })()
+    this.inFlightRefresh = pass
+    this.inFlightForced = force
+    try {
+      return await pass
+    } finally {
+      // A newer pass may have taken over while this one ran; never clear theirs.
+      if (this.inFlightRefresh === pass) {
+        this.inFlightRefresh = null
+        this.inFlightForced = false
+      }
+    }
+  }
+
+  private async runRefresh(opts?: { force?: boolean }): Promise<IndexStats> {
     const start = Date.now()
     const db = this.ensureDb()
     if (!db) return emptyIndexStats(Date.now() - start)
@@ -275,14 +380,34 @@ export class SqliteSearchProvider implements SearchProvider {
     if (!force && start - this.lastRefresh < this.throttleMs) {
       return emptyIndexStats(Date.now() - start)
     }
-    this.lastRefresh = start
 
     const stats = emptyIndexStats()
+    let processed = 0
 
     const existing = new Map<string, number>()
     for (const row of this.selectFilesStmt!.all() as FileRow[]) {
       existing.set(row.session_id, row.mtime_ms)
     }
+
+    // Session names live outside the JSONL files: a Rewind rename only rewrites
+    // session-metadata.json, so mtime-based skipping would never notice it.
+    // titles_mtime is the separate freshness signal that makes a rename
+    // searchable on the next pass, with no restart and no schema bump.
+    const { titles, metadataMtimeMs } = readTitleSource()
+    let titlesStale = true
+    try {
+      const row = db.prepare("SELECT value FROM meta WHERE key='titles_mtime'").get() as
+        | { value: string }
+        | undefined
+      titlesStale = String(metadataMtimeMs) !== row?.value
+    } catch {
+      titlesStale = true
+    }
+    const withTitleRow = new Set<string>()
+    for (const row of this.selectTitleSessionsStmt!.all() as { session_id: string }[]) {
+      withTitleRow.add(row.session_id)
+    }
+    const pendingTitles: TitleRowWrite[] = []
 
     const projectsDir = getProjectsDir()
     const seen = new Set<string>()
@@ -290,17 +415,46 @@ export class SqliteSearchProvider implements SearchProvider {
 
     for (const project of projects) {
       for (const file of project.sessionFiles) {
+        if (++processed % YIELD_EVERY_FILES === 0) {
+          // Hand the single Node event loop back so a long pass does not block
+          // every other request for its whole duration.
+          await new Promise((r) => setImmediate(r))
+        }
         const sessionId = extractSessionId(file)
         seen.add(sessionId)
         const filePath = path.join(projectsDir, project.dirName, file)
         const stat = await fs.promises.stat(filePath).catch(() => null)
         if (!stat) continue
 
+        // Never the empty string: an empty ts sorts dead last under ORDER BY ts
+        // DESC and the name row would be truncated away by any broad query.
+        const queueTitle = () => {
+          const content = buildTitleContent(
+            titles.get(sessionId),
+            project.projectName,
+            project.dirName,
+          )
+          if (!content) return
+          pendingTitles.push({
+            sessionId,
+            projectPath: project.decodedPath,
+            projectName: project.projectName,
+            timestamp: new Date(stat.mtimeMs).toISOString(),
+            content,
+          })
+        }
+
         const prevMtime = existing.get(sessionId)
         if (!force && prevMtime !== undefined && prevMtime === stat.mtimeMs) {
           stats.sessionsSkipped++
+          // A skipped file still needs its name row when the names changed or
+          // it predates this feature.
+          if (titlesStale || !withTitleRow.has(sessionId)) queueTitle()
           continue
         }
+
+        // Reindexing wipes every block for the session, name row included.
+        queueTitle()
 
         const blocks: SearchBlock[] = []
         try {
@@ -330,8 +484,30 @@ export class SqliteSearchProvider implements SearchProvider {
       }
     }
 
+    // Name rows are written last: reindexing a file deletes every block it owns,
+    // this one included.
+    if (pendingTitles.length > 0) this.writeTitlesTxn!(pendingTitles)
+    this.upsertMetaStmt!.run('titles_mtime', String(metadataMtimeMs))
+
     stats.durationMs = Date.now() - start
+    this.lastRefresh = Date.now()
     return stats
+  }
+
+  /**
+   * ISO timestamp of the newest source file mtime present in the index, or null
+   * when the index is empty. Content newer than this is NOT searchable yet.
+   */
+  indexedThrough(): string | null {
+    try {
+      const row = this.db?.prepare('SELECT MAX(mtime_ms) m FROM indexed_files').get() as
+        | { m: number | null }
+        | undefined
+      if (!row || row.m == null) return null
+      return new Date(row.m).toISOString()
+    } catch {
+      return null
+    }
   }
 
   async search(query: SearchQuery): Promise<SearchResult> {
@@ -342,12 +518,25 @@ export class SqliteSearchProvider implements SearchProvider {
 
     const db = this.ensureDb()
     if (!db) {
-      return { hits: [], total: 0, tookMs: Date.now() - start, provider: this.name, degraded: true }
+      return {
+        hits: [],
+        total: 0,
+        tookMs: Date.now() - start,
+        provider: this.name,
+        degraded: true,
+        indexedThrough: null,
+      }
     }
 
     const match = sanitizeFtsQuery(query.query)
     if (!match) {
-      return { hits: [], total: 0, tookMs: Date.now() - start, provider: this.name }
+      return {
+        hits: [],
+        total: 0,
+        tookMs: Date.now() - start,
+        provider: this.name,
+        indexedThrough: this.indexedThrough(),
+      }
     }
 
     const filters: string[] = []
@@ -373,14 +562,27 @@ export class SqliteSearchProvider implements SearchProvider {
     let total: number
 
     if (groupBySession) {
+      // The representative row per session is the most RECENT match, not the
+      // best-scoring one: the UI renders hit.timestamp next to hit.snippet, so
+      // the sort key, the rendered date and the snippet must all come from the
+      // same row. A MAX(ts) OVER (...) sort key would come from a different row
+      // than the snippet and reintroduces visible date inversions.
+      // LIMIT applies to sessions here, since one row survives per session.
+      // `tm DESC` leads the cross-session order so a NAME match outranks every
+      // body-text match: `brain` matches 155 sessions, and pure recency buried
+      // the handful actually named brain past the limit. The representative row
+      // prefers the title row when one matched, so hit.timestamp and
+      // hit.snippet still come from the same row.
       const sql = `
-        SELECT sid, pp, pn, role, bt, ts, score, snip, mc FROM (
-          SELECT *, ROW_NUMBER() OVER (PARTITION BY sid ORDER BY score ASC, seq ASC) rn,
-            COUNT(*) OVER (PARTITION BY sid) mc
+        SELECT sid, pp, pn, role, bt, ts, score, snip, mc, tm FROM (
+          SELECT *,
+            ROW_NUMBER() OVER (PARTITION BY sid ORDER BY (bt='title') DESC, ts DESC, score ASC, seq ASC) rn,
+            COUNT(*) OVER (PARTITION BY sid) mc,
+            MAX(bt='title') OVER (PARTITION BY sid) tm
           FROM (${inner})
         )
         WHERE rn = 1
-        ORDER BY score ASC
+        ORDER BY tm DESC, ts DESC, sid ASC
         LIMIT ? OFFSET ?`
       rows = db.prepare(sql).all(match, ...filterParams, limit, offset) as MatchRow[]
       const totalRow = db
@@ -393,9 +595,9 @@ export class SqliteSearchProvider implements SearchProvider {
       total = totalRow?.c ?? 0
     } else {
       const sql = `
-        SELECT sid, pp, pn, role, bt, ts, score, snip, 1 mc
+        SELECT sid, pp, pn, role, bt, ts, score, snip, 1 mc, (bt='title') tm
         FROM (${inner})
-        ORDER BY score ASC
+        ORDER BY ts DESC, score ASC, seq ASC
         LIMIT ? OFFSET ?`
       rows = db.prepare(sql).all(match, ...filterParams, limit, offset) as MatchRow[]
       const totalRow = db
@@ -408,6 +610,10 @@ export class SqliteSearchProvider implements SearchProvider {
       total = totalRow?.c ?? 0
     }
 
+    // Names come from the live map, not from the index: it is O(1), always
+    // current, and does not wait for a refresh pass to catch a rename.
+    const { titles } = readTitleSource()
+
     const hits: SearchHit[] = rows.map((r) => ({
       sessionId: r.sid,
       projectPath: r.pp,
@@ -418,9 +624,17 @@ export class SqliteSearchProvider implements SearchProvider {
       role: r.role,
       blockType: r.bt as BlockType,
       matchCount: r.mc,
+      title: resolveTitle(titles.get(r.sid)),
+      titleMatch: r.tm === 1,
     }))
 
-    return { hits, total, tookMs: Date.now() - start, provider: this.name }
+    return {
+      hits,
+      total,
+      tookMs: Date.now() - start,
+      provider: this.name,
+      indexedThrough: this.indexedThrough(),
+    }
   }
 
   close(): void {

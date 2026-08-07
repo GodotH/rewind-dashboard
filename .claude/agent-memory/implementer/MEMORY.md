@@ -15,8 +15,12 @@
 
 ## Project Quality Gates
 
-- Only `npm run typecheck` and `npm run build` are available (no lint script configured).
-- Run from `apps/web/` directory.
+- `npm run typecheck`, `npm run lint`, `npm run test` and `npm run build` all exist. Run from `apps/web/`.
+- `npm run lint` has 16 pre-existing warnings and 0 errors. Only errors are a regression.
+
+## Pointers
+
+- [Vite config reachable modules need relative imports](feedback_vite_config_imports.md): `@/` breaks the dev server for anything under `src/lib/launch/`.
 
 ## Key Patterns
 

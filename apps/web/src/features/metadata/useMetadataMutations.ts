@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   pinSession,
+  hideSession,
   renameSession,
   pinProject,
   hideProject,
@@ -25,12 +26,26 @@ export function usePinSession() {
   })
 }
 
+export function useHideSession() {
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: (args: { sessionId: string; hidden: boolean }) =>
+      hideSession({ data: args }),
+    onSuccess: invalidate,
+  })
+}
+
 export function useRenameSession() {
+  const queryClient = useQueryClient()
   const invalidate = useInvalidateAll()
   return useMutation({
     mutationFn: (args: { sessionId: string; customName: string }) =>
       renameSession({ data: args }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      // The conversation panel indexes the name too, so it must re-query.
+      queryClient.invalidateQueries({ queryKey: ['fts'] })
+    },
   })
 }
 
